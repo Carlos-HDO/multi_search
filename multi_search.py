@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Multi-Search CLI Tool
-Dispara buscas simultâneas em múltiplos motores de busca em abas do navegador.
+Dispatches simultaneous searches across multiple web search engines in browser tabs.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ DEFAULT_TAB_DELAY = 0.3
 
 
 def detect_default_browser() -> str:
-    """Detecta o navegador padrão disponível no sistema (LibreWolf nativo/flatpak ou Firefox)."""
+    """Detects the default browser available on the system (native/flatpak LibreWolf or Firefox)."""
     if shutil.which("librewolf"):
         return "librewolf"
 
@@ -62,17 +62,17 @@ def detect_default_browser() -> str:
 
 
 def list_engines() -> None:
-    """Exibe a lista de motores de busca suportados."""
-    print("Motores de busca disponíveis:\n")
-    print(f"  {'Identificador':<15} {'Nome':<15} {'URL Base'}")
+    """Displays the list of supported search engines."""
+    print("Supported search engines:\n")
+    print(f"  {'Identifier':<15} {'Name':<15} {'Base URL'}")
     print(f"  {'-'*13:<15} {'-'*13:<15} {'-'*30}")
     for name, key, tpl in ENGINES:
         print(f"  {key:<15} {name:<15} {tpl}")
-    print("\nAtalhos aceitos no filtro -e/--engines: ddg (duckduckgo), sp (startpage), perp (perplexity)")
+    print("\nAccepted shortcuts in -e/--engines filter: ddg (duckduckgo), sp (startpage), perp (perplexity)")
 
 
 def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
-    """Filtra a lista de motores pelo nome ou alias informado."""
+    """Filters the engine list by provided names or aliases."""
     selected_keys = set()
     for item in selected:
         for key in item.split(","):
@@ -85,13 +85,13 @@ def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
     filtered = [e for e in ENGINES if e[1] in selected_keys]
     if not filtered:
         valid = ", ".join([e[1] for e in ENGINES])
-        print(f"Erro: Nenhum motor válido selecionado. Motores disponíveis: {valid}", file=sys.stderr)
+        print(f"Error: No valid search engine selected. Available engines: {valid}", file=sys.stderr)
         sys.exit(2)
     return filtered
 
 
 def build_searches(term: str, engines: list[tuple[str, str, str]]) -> list[tuple[str, str]]:
-    """Gera pares (Nome, URL formatada) para o termo informado."""
+    """Generates (Name, formatted URL) pairs for the given search term."""
     q = quote_plus(term)
     return [(name, tpl.format(q=q)) for name, _, tpl in engines]
 
@@ -100,54 +100,55 @@ def main() -> int:
     default_browser = detect_default_browser()
 
     p = argparse.ArgumentParser(
-        description="Multi-Search: Abre várias abas no navegador, cada uma pesquisando em um buscador.",
+        description="Multi-Search: Opens multiple browser tabs, each searching across a different engine.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Exemplos:\n"
+        epilog="Examples:\n"
                "  %(prog)s python web scraping\n"
-               "  %(prog)s -p -e google,brave,ddg segurança defensiva\n"
+               "  %(prog)s -p -e google,brave,ddg defensive security\n"
                "  %(prog)s --dry-run docker networking\n"
                "  %(prog)s --browser firefox linux kernel\n",
     )
     p.add_argument(
         "termo",
         nargs="*",
-        help="Termo de busca (aspas são opcionais, múltiplas palavras são combinadas).",
+        metavar="QUERY",
+        help="Search query (quotes are optional, multiple words are joined automatically).",
     )
     p.add_argument(
         "-e", "--engines",
-        help="Filtra os motores de busca desejados separados por vírgula (ex: google,brave,ddg).",
+        help="Filter desired search engines separated by comma (e.g. google,brave,ddg).",
     )
     p.add_argument(
         "-l", "--list-engines",
         action="store_true",
-        help="Lista todos os motores de busca suportados e encerra.",
+        help="List all supported search engines and exit.",
     )
     p.add_argument(
         "-b", "--browser",
         default=default_browser,
-        help=f"Comando do navegador a ser invocado (padrão: {default_browser!r}).",
+        help=f"Browser launcher command to invoke (default: {default_browser!r}).",
     )
     p.add_argument(
         "-p", "--private",
         action="store_true",
-        help="Abre os resultados em uma nova janela de navegação privada.",
+        help="Open search results in a new private browsing window.",
     )
     p.add_argument(
         "-d", "--delay",
         type=float,
         default=DEFAULT_TAB_DELAY,
-        help=f"Intervalo em segundos entre a abertura de cada aba (padrão: {DEFAULT_TAB_DELAY}s).",
+        help=f"Delay in seconds between opening each tab (default: {DEFAULT_TAB_DELAY}s).",
     )
     p.add_argument(
         "--initial-delay",
         type=float,
         default=DEFAULT_INITIAL_DELAY,
-        help=f"Tempo de espera em segundos para o carregamento da janela inicial (padrão: {DEFAULT_INITIAL_DELAY}s).",
+        help=f"Wait time in seconds for the initial window to spawn (default: {DEFAULT_INITIAL_DELAY}s).",
     )
     p.add_argument(
         "--dry-run",
         action="store_true",
-        help="Apenas lista as URLs formatadas sem abrir o navegador.",
+        help="Preview formatted URLs without opening the browser.",
     )
 
     args = p.parse_args()
@@ -162,16 +163,16 @@ def main() -> int:
 
     term = " ".join(args.termo).strip()
     if not term:
-        print("Erro: Termo de busca vazio.", file=sys.stderr)
+        print("Error: Search query cannot be empty.", file=sys.stderr)
         return 2
 
     browser_cmd = shlex.split(args.browser)
     if not browser_cmd:
-        print("Erro: Comando de navegador inválido.", file=sys.stderr)
+        print("Error: Invalid browser command.", file=sys.stderr)
         return 2
 
     if shutil.which(browser_cmd[0]) is None:
-        print(f"Erro: Executável '{browser_cmd[0]}' não foi encontrado no sistema (PATH).", file=sys.stderr)
+        print(f"Error: Executable '{browser_cmd[0]}' not found in PATH.", file=sys.stderr)
         return 1
 
     engines = ENGINES
@@ -181,38 +182,38 @@ def main() -> int:
     searches = build_searches(term, engines)
 
     if args.dry_run:
-        print(f"\n🔍 Termo de busca: \"{term}\"")
-        print(f"🌐 Navegador: {args.browser}")
-        print(f"📑 Total de motores: {len(searches)}\n")
+        print(f"\n🔍 Search Query: \"{term}\"")
+        print(f"🌐 Browser: {args.browser}")
+        print(f"📑 Total engines: {len(searches)}\n")
         for name, url in searches:
             print(f"  [{name:<11}] {url}")
         print()
         return 0
 
-    mode_label = "privada" if args.private else "comum"
-    print(f"🔍 Multi-Search | Termo: \"{term}\" | Motores: {len(searches)} | Modo: Janela {mode_label}")
+    mode_label = "private" if args.private else "standard"
+    print(f"🔍 Multi-Search | Query: \"{term}\" | Engines: {len(searches)} | Window: {mode_label}")
 
     try:
-        # 1) Abre a primeira URL em uma nova janela
+        # 1) Open the first URL in a new window
         first_engine, first_url = searches[0]
         window_flag = "--private-window" if args.private else "--new-window"
-        print(f" [1/{len(searches)}] 🚀 Abrindo janela com {first_engine}...")
+        print(f" [1/{len(searches)}] 🚀 Spawning window with {first_engine}...")
         subprocess.Popen(browser_cmd + [window_flag, first_url])
 
         if len(searches) > 1:
             time.sleep(args.initial_delay)
 
-            # 2) Abre as demais URLs em novas abas
+            # 2) Open subsequent URLs in new tabs
             for idx, (name, url) in enumerate(searches[1:], start=2):
-                print(f" [{idx}/{len(searches)}] 📄 Abrindo aba: {name}...")
+                print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}...")
                 subprocess.Popen(browser_cmd + ["--new-tab", url])
                 time.sleep(args.delay)
 
     except KeyboardInterrupt:
-        print("\n\n⚠️ Interrompido pelo usuário.", file=sys.stderr)
+        print("\n\n⚠️ Interrupted by user.", file=sys.stderr)
         return 130
 
-    print("✨ Todas as abas foram disparadas com sucesso!")
+    print("✨ All tabs dispatched successfully!")
     return 0
 
 

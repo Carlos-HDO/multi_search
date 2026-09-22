@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script de instalação do utilitário multi_search em ~/.local/bin
+# Installation script for multi_search utility in ~/.local/bin
 
 set -euo pipefail
 
@@ -14,9 +14,9 @@ chmod +x "$SCRIPT_DIR/multi_search.py"
 ln -sf "$SCRIPT_DIR/multi_search.py" "$TARGET_DIR/$BIN_NAME"
 ln -sf "$SCRIPT_DIR/multi_search.py" "$TARGET_DIR/multi_search"
 
-echo "✅ Instalado com sucesso!"
-echo "Comandos disponíveis em $TARGET_DIR:"
+echo "✅ Successfully installed!"
+echo "Available commands in $TARGET_DIR:"
 echo "  • $BIN_NAME"
 echo "  • multi_search"
 echo ""
-echo "Certifique-se de que '$TARGET_DIR' esteja no seu PATH."
+echo "Ensure '$TARGET_DIR' is included in your PATH."
