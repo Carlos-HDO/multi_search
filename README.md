@@ -121,9 +121,9 @@ When conducting repeated queries, major search engines (particularly Google and 
 
 The **`-H`** (`--human`) flag simulates realistic, non-deterministic human browsing behavior through three core techniques:
 
-1. **Dynamic Delay Jitter (Cadência Orgânica):**
+1. **Dynamic Delay Jitter (Organic Pacing):**
    * Replaces mechanical, exact micro-delays (e.g., `0.3s`) with natural floating-point randomized intervals between **`1.0s` and `2.6s`** per tab.
-2. **Tab Order Shuffling (Quebra de Assinatura de Tráfego):**
+2. **Tab Order Shuffling (Breaking Traffic Signatures):**
    * Randomizes the sequence in which search engines are opened on every execution (`--shuffle`), preventing CDNs and bot detection engines from recognizing fixed request fingerprints.
 3. **Organic Window Initialization:**
    * Allocates an initial organic startup delay (`~2.2s`) to allow the browser window to instantiate its IPC socket before tab dispatching begins.
@@ -137,12 +137,12 @@ msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
 ```
 
 > [!TIP]
-> **Dicas Importantes para Mitigar CAPTCHAs no Google / Crucial Tips Against CAPTCHAs:**
+> **Crucial Tips to Mitigate Search Engine CAPTCHAs:**
 >
-> - **Evite usar o modo anônimo (`-p`) repetidamente:**  
->   Janelas anônimas não possuem histórico, cache nem cookies de sessão válidos, o que ativa o alerta vermelho dos algoritmos anti-bot do Google e Yandex.
-> - **Use o seu navegador principal do dia a dia:**  
->   Executar o `msearch` no seu navegador cotidiano (onde você já tem cookies e navegação comum ativa) em conjunto com a flag **`-H`** reduz drasticamente a ocorrência de verificações e CAPTCHAs.
+> - **Avoid using private/incognito mode (`-p`) repeatedly:**  
+>   Private and incognito windows lack browsing history, cache, and valid session cookies. Search engine anti-bot heuristics (especially Google and Yandex) immediately flag cold requests originating from clean sessions as automated scraping bots.
+> - **Use your daily browser profile:**  
+>   Running `msearch` on your primary daily browser (where you already have accumulated legitimate cookies and active session history) in combination with the **`-H`** flag drastically reduces the occurrence of verification challenges.
 
 ### 9. Preview URLs without Opening Browser (`--dry-run`)
 ```bash
