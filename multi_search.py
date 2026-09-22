@@ -116,7 +116,8 @@ def main() -> int:
     )
     p.add_argument(
         "-e", "--engines",
-        help="Filter desired search engines separated by comma (e.g. google,brave,ddg).",
+        metavar="ENGINE,ENGINE",
+        help="Filter search engines by comma-separated names (e.g. -e google,brave,ddg).",
     )
     p.add_argument(
         "-l", "--list-engines",
@@ -158,6 +159,7 @@ def main() -> int:
         return 0
 
     if not args.termo:
+        print("Error: Missing search query (QUERY). See usage below:\n", file=sys.stderr)
         p.print_help(file=sys.stderr)
         return 2
 
