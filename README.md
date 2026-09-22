@@ -79,13 +79,21 @@ msearch --dry-run open source intelligence
 msearch --list-engines
 ```
 
-### Custom Browser & Timing
+### List Detected Browsers (`-lb` / `--list-browsers`)
+Scan and display all web browsers currently installed on your system (Native, Flatpak, and Snap):
 ```bash
-# Use Firefox instead of LibreWolf
-msearch -b firefox open source tools
+msearch --list-browsers
+```
 
-# Custom tab delay (0.5 seconds)
-msearch -d 0.5 kubernetes architecture
+### Choose Browser with Aliases (`-b` / `--browser`)
+Easily switch browsers using short aliases or custom commands:
+```bash
+# Use Brave Browser (Flatpak or Native)
+msearch -b brave open source tools
+
+# Use Google Chrome or Firefox
+msearch -b chrome kubernetes architecture
+msearch -b firefox reverse engineering
 ```
 
 ---
@@ -94,13 +102,14 @@ msearch -d 0.5 kubernetes architecture
 
 | Flag | Argument | Description |
 | :--- | :--- | :--- |
-| `termo` | `[string...]` | Search query (multiple words are joined automatically) |
+| `QUERY` | `[string...]` | Search query (multiple words are joined automatically) |
 | `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `google,brave,ddg`) |
 | `-l`, `--list-engines` | None | Display supported search engines and exit |
-| `-p`, `--private` | None | Open search in a new private window |
-| `-b`, `--browser` | `<cmd>` | Browser launcher command (defaults to auto-detected browser) |
+| `-lb`, `--list-browsers` | None | Scan and list detected installed web browsers and exit |
+| `-b`, `--browser` | `<alias\|cmd>` | Browser alias (`brave`, `chrome`, `firefox`, etc.) or custom command |
+| `-p`, `--private` | None | Open search in a new private/incognito window |
 | `-d`, `--delay` | `<sec>` | Delay in seconds between opening tabs (default: `0.3s`) |
-| `--initial-delay` | `<sec>` | Delay before starting to open tabs to allow window startup (default: `1.0s`) |
+| `--initial-delay` | `<sec>` | Delay before opening tabs to allow window startup (default: `1.0s`) |
 | `--dry-run` | None | Preview formatted search URLs without launching the browser |
 | `-h`, `--help` | None | Display help and usage instructions |
 

@@ -34,31 +34,130 @@ ALIASES: dict[str, str] = {
     "perp": "perplexity",
 }
 
+# (Display Name, Alias, [Native Binaries], Flatpak App ID, is_chromium)
+KNOWN_BROWSERS = [
+    ("LibreWolf",     "librewolf", ["librewolf"],                              "io.gitlab.librewolf-community",      False),
+    ("Firefox",       "firefox",   ["firefox", "firefox-esr"],                 "org.mozilla.firefox",                False),
+    ("Brave",         "brave",     ["brave", "brave-browser"],                 "com.brave.Browser",                  True),
+    ("Google Chrome", "chrome",    ["google-chrome", "google-chrome-stable"],  "com.google.Chrome",                  True),
+    ("Chromium",      "chromium",  ["chromium", "chromium-browser"],           "org.chromium.Chromium",              True),
+    ("Tor Browser",   "tor",       ["tor-browser"],                            "org.torproject.torbrowser-launcher", False),
+    ("Zen Browser",   "zen",       ["zen-browser", "zen"],                     "io.github.zen_browser.zen",          False),
+    ("Vivaldi",       "vivaldi",   ["vivaldi", "vivaldi-stable"],              "com.vivaldi.Vivaldi",                True),
+    ("Opera",         "opera",     ["opera"],                                  "com.opera.Opera",                    True),
+    ("Microsoft Edge","edge",      ["microsoft-edge", "microsoft-edge-stable"], "com.microsoft.Edge",               True),
+]
+
 DEFAULT_INITIAL_DELAY = 1.0
 DEFAULT_TAB_DELAY = 0.3
 
 
-def detect_default_browser() -> str:
-    """Detects the default browser available on the system (native/flatpak LibreWolf or Firefox)."""
-    if shutil.which("librewolf"):
-        return "librewolf"
+class BrowserInfo:
+    def __init__(self, name: str, alias: str, command: str, btype: str, is_chromium: bool):
+        self.name = name
+        self.alias = alias
+        self.command = command
+        self.btype = btype
+        self.is_chromium = is_chromium
 
+
+def get_installed_browsers() -> list[BrowserInfo]:
+    """Scans the system for installed browsers (Native, Flatpak, Snap)."""
+    flatpak_apps: set[str] = set()
     if shutil.which("flatpak"):
         try:
             res = subprocess.run(
-                ["flatpak", "info", "io.gitlab.librewolf-community"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                ["flatpak", "list", "--app", "--columns=application"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
-            if res.returncode == 0:
-                return "flatpak run io.gitlab.librewolf-community"
+            flatpak_apps = set(res.stdout.strip().split())
         except Exception:
             pass
 
-    if shutil.which("firefox"):
-        return "firefox"
+    installed: list[BrowserInfo] = []
+    for name, alias, bins, flatpak_id, is_chromium in KNOWN_BROWSERS:
+        found_bin = None
+        for b in bins:
+            p = shutil.which(b)
+            if p:
+                found_bin = b
+                break
+        if found_bin:
+            resolved_path = shutil.which(found_bin) or ""
+            btype = "Snap" if "/snap/" in resolved_path else "Native"
+            installed.append(BrowserInfo(name, alias, found_bin, btype, is_chromium))
+        elif flatpak_id and flatpak_id in flatpak_apps:
+            installed.append(BrowserInfo(name, alias, f"flatpak run {flatpak_id}", "Flatpak", is_chromium))
 
-    return "flatpak run io.gitlab.librewolf-community"
+    return installed
+
+
+def detect_default_browser() -> str:
+    """Detects the preferred default browser available on the system."""
+    installed = get_installed_browsers()
+    if not installed:
+        return "flatpak run io.gitlab.librewolf-community"
+
+    # Preference order: LibreWolf -> Firefox -> Brave -> Chrome -> Chromium -> First available
+    priority = ["librewolf", "firefox", "brave", "chrome", "chromium"]
+    by_alias = {b.alias: b for b in installed}
+
+    for p in priority:
+        if p in by_alias:
+            return by_alias[p].command
+
+    return installed[0].command
+
+
+def list_browsers() -> None:
+    """Displays all detected web browsers installed on the system."""
+    browsers = get_installed_browsers()
+    default_cmd = detect_default_browser()
+
+    print("Detected browsers on this system:\n")
+    print(f"  {'Name':<16} {'Alias':<12} {'Type':<10} {'Command'}")
+    print(f"  {'-'*14:<16} {'-'*10:<12} {'-'*8:<10} {'-'*35}")
+
+    if not browsers:
+        print("  No recognized browsers detected. You can specify any browser command using -b/--browser.")
+    else:
+        for b in browsers:
+            is_def = " (DEFAULT)" if b.command == default_cmd else ""
+            print(f"  {b.name:<16} {b.alias:<12} {b.btype:<10} {b.command}{is_def}")
+
+    print("\nUsage tips:")
+    print("  Run with an alias:   msearch -b brave 'search query'")
+    print("  Run with a command: msearch -b 'firefox' 'search query'")
+
+
+def resolve_browser(input_browser: str) -> tuple[list[str], bool]:
+    """
+    Resolves a browser input (alias or raw command) into (command_list, is_chromium).
+    """
+    clean = input_browser.strip()
+    browsers = get_installed_browsers()
+
+    # Match installed browser alias
+    for b in browsers:
+        if clean.lower() == b.alias:
+            return shlex.split(b.command), b.is_chromium
+
+    # Match known browser definition even if not in installed list
+    for _, alias, bins, flatpak_id, is_chromium in KNOWN_BROWSERS:
+        if clean.lower() == alias:
+            cmd = bins[0] if shutil.which(bins[0]) else f"flatpak run {flatpak_id}"
+            return shlex.split(cmd), is_chromium
+
+    # Raw command
+    cmd_list = shlex.split(clean)
+    binary_name = cmd_list[0].lower() if cmd_list else ""
+    is_chrom = any(
+        x in binary_name or (len(cmd_list) > 2 and x in cmd_list[2].lower())
+        for x in ["chrome", "chromium", "brave", "vivaldi", "opera", "edge"]
+    )
+    return cmd_list, is_chrom
 
 
 def list_engines() -> None:
@@ -104,9 +203,10 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Examples:\n"
                "  %(prog)s python web scraping\n"
-               "  %(prog)s -p -e google,brave,ddg defensive security\n"
-               "  %(prog)s --dry-run docker networking\n"
-               "  %(prog)s --browser firefox linux kernel\n",
+               "  %(prog)s -b brave -e google,brave,ddg cybersecurity\n"
+               "  %(prog)s -p -b firefox defensive security\n"
+               "  %(prog)s --list-browsers\n"
+               "  %(prog)s --dry-run docker networking\n",
     )
     p.add_argument(
         "termo",
@@ -125,14 +225,19 @@ def main() -> int:
         help="List all supported search engines and exit.",
     )
     p.add_argument(
+        "-lb", "--list-browsers",
+        action="store_true",
+        help="List all detected web browsers on this system and exit.",
+    )
+    p.add_argument(
         "-b", "--browser",
         default=default_browser,
-        help=f"Browser launcher command to invoke (default: {default_browser!r}).",
+        help=f"Browser alias or launcher command to invoke (default: {default_browser!r}).",
     )
     p.add_argument(
         "-p", "--private",
         action="store_true",
-        help="Open search results in a new private browsing window.",
+        help="Open search results in a new private/incognito browsing window.",
     )
     p.add_argument(
         "-d", "--delay",
@@ -154,6 +259,10 @@ def main() -> int:
 
     args = p.parse_args()
 
+    if args.list_browsers:
+        list_browsers()
+        return 0
+
     if args.list_engines:
         list_engines()
         return 0
@@ -168,7 +277,7 @@ def main() -> int:
         print("Error: Search query cannot be empty.", file=sys.stderr)
         return 2
 
-    browser_cmd = shlex.split(args.browser)
+    browser_cmd, is_chromium = resolve_browser(args.browser)
     if not browser_cmd:
         print("Error: Invalid browser command.", file=sys.stderr)
         return 2
@@ -183,24 +292,29 @@ def main() -> int:
 
     searches = build_searches(term, engines)
 
+    cmd_display = " ".join(browser_cmd)
     if args.dry_run:
         print(f"\n🔍 Search Query: \"{term}\"")
-        print(f"🌐 Browser: {args.browser}")
+        print(f"🌐 Browser: {cmd_display} ({'Chromium-based' if is_chromium else 'Firefox-based'})")
         print(f"📑 Total engines: {len(searches)}\n")
         for name, url in searches:
             print(f"  [{name:<11}] {url}")
         print()
         return 0
 
-    mode_label = "private" if args.private else "standard"
-    print(f"🔍 Multi-Search | Query: \"{term}\" | Engines: {len(searches)} | Window: {mode_label}")
+    mode_label = "private/incognito" if args.private else "standard"
+    print(f"🔍 Multi-Search | Query: \"{term}\" | Engines: {len(searches)} | Browser: {cmd_display} | Mode: {mode_label}")
 
     try:
-        # 1) Open the first URL in a new window
+        # 1) Open first URL in a new window
         first_engine, first_url = searches[0]
-        window_flag = "--private-window" if args.private else "--new-window"
+        if is_chromium:
+            window_flags = ["--incognito", "--new-window", first_url] if args.private else ["--new-window", first_url]
+        else:
+            window_flags = ["--private-window", first_url] if args.private else ["--new-window", first_url]
+
         print(f" [1/{len(searches)}] 🚀 Spawning window with {first_engine}...")
-        subprocess.Popen(browser_cmd + [window_flag, first_url])
+        subprocess.Popen(browser_cmd + window_flags)
 
         if len(searches) > 1:
             time.sleep(args.initial_delay)
@@ -208,7 +322,11 @@ def main() -> int:
             # 2) Open subsequent URLs in new tabs
             for idx, (name, url) in enumerate(searches[1:], start=2):
                 print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}...")
-                subprocess.Popen(browser_cmd + ["--new-tab", url])
+                if is_chromium:
+                    tab_flags = ["--incognito", url] if args.private else [url]
+                else:
+                    tab_flags = ["--new-tab", url]
+                subprocess.Popen(browser_cmd + tab_flags)
                 time.sleep(args.delay)
 
     except KeyboardInterrupt:
