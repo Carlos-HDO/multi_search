@@ -115,15 +115,34 @@ msearch -b firefox -p -c infra target-domain.com
 msearch -b chrome kubernetes architecture
 ```
 
-### 8. Human Simulation & Anti-Bot Pacing (`-H` / `--human`)
-When conducting repeated searches, search engines like Google and Yandex can trigger CAPTCHAs due to rapid, deterministic tab opening. Use the `-H` flag to simulate human-like behavior:
+### 8. Human Simulation & Anti-Bot Evasion (`-H` / `--human`)
+
+When conducting repeated queries, major search engines (particularly Google and Yandex) deploy behavioral heuristics that detect automated scripts and trigger CAPTCHAs. 
+
+The **`-H`** (`--human`) flag simulates realistic, non-deterministic human browsing behavior through three core techniques:
+
+1. **Dynamic Delay Jitter (Cadência Orgânica):**
+   * Replaces mechanical, exact micro-delays (e.g., `0.3s`) with natural floating-point randomized intervals between **`1.0s` and `2.6s`** per tab.
+2. **Tab Order Shuffling (Quebra de Assinatura de Tráfego):**
+   * Randomizes the sequence in which search engines are opened on every execution (`--shuffle`), preventing CDNs and bot detection engines from recognizing fixed request fingerprints.
+3. **Organic Window Initialization:**
+   * Allocates an initial organic startup delay (`~2.2s`) to allow the browser window to instantiate its IPC socket before tab dispatching begins.
+
 ```bash
-# Automatically shuffles engine order and applies realistic randomized delay jitter (1.0s - 2.6s)
+# Full human simulation (Randomized delay jitter 1.0s-2.6s + Shuffled tab order):
 msearch -H -c osint "target username"
 
 # Or manually customize delay and jitter variance:
 msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
 ```
+
+> [!TIP]
+> **Dicas Importantes para Mitigar CAPTCHAs no Google / Crucial Tips Against CAPTCHAs:**
+>
+> - **Evite usar o modo anônimo (`-p`) repetidamente:**  
+>   Janelas anônimas não possuem histórico, cache nem cookies de sessão válidos, o que ativa o alerta vermelho dos algoritmos anti-bot do Google e Yandex.
+> - **Use o seu navegador principal do dia a dia:**  
+>   Executar o `msearch` no seu navegador cotidiano (onde você já tem cookies e navegação comum ativa) em conjunto com a flag **`-H`** reduz drasticamente a ocorrência de verificações e CAPTCHAs.
 
 ### 9. Preview URLs without Opening Browser (`--dry-run`)
 ```bash
