@@ -205,4 +205,4 @@ alias ms='msearch'
 
 ## 📄 License
 
-Distributed under the [MIT](LICENSE) License. Copyright (c) 2026 Carlos Dias.
+Distributed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0) - ensuring this tool and derivative works remain free and open source forever. Copyright (c) 2026 Carlos Dias.
