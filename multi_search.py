@@ -8,6 +8,7 @@ Optimized for General Web Research and OSINT (Open Source Intelligence).
 from __future__ import annotations
 
 import argparse
+import random
 import shlex
 import shutil
 import subprocess
@@ -259,6 +260,15 @@ def get_engines_by_category(category: str) -> list[tuple[str, str, str]]:
     return [e for e in ENGINES if e[1] in key_set]
 
 
+def calculate_delay(base: float, jitter: float) -> float:
+    """Calculates delay applying random jitter variation (±jitter)."""
+    if jitter <= 0.0:
+        return max(0.05, base)
+    low = max(0.1, base - jitter)
+    high = max(low + 0.1, base + jitter)
+    return round(random.uniform(low, high), 2)
+
+
 def build_searches(term: str, engines: list[tuple[str, str, str]]) -> list[tuple[str, str]]:
     """Generates (Name, formatted URL) pairs for the given search term."""
     q = quote_plus(term)
@@ -323,6 +333,23 @@ def main() -> int:
         help="Open search results in a new private/incognito browsing window.",
     )
     p.add_argument(
+        "-H", "--human",
+        action="store_true",
+        help="Simulate human pacing: randomize delay intervals and shuffle engine order to reduce CAPTCHAs.",
+    )
+    p.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Randomize the opening order of search engine tabs to break request patterns.",
+    )
+    p.add_argument(
+        "-j", "--jitter",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help="Add random variation (±SECONDS) around the tab delay (e.g. -j 0.8).",
+    )
+    p.add_argument(
         "-d", "--delay",
         type=float,
         default=DEFAULT_TAB_DELAY,
@@ -373,6 +400,16 @@ def main() -> int:
         print(f"Error: Executable '{browser_cmd[0]}' not found in PATH.", file=sys.stderr)
         return 1
 
+    # Human simulation presets
+    if args.human:
+        args.shuffle = True
+        if args.delay == DEFAULT_TAB_DELAY:
+            args.delay = 1.8
+        if args.jitter == 0.0:
+            args.jitter = 0.8
+        if args.initial_delay == DEFAULT_INITIAL_DELAY:
+            args.initial_delay = 2.2
+
     # Resolve target engines
     if args.engines:
         engines = filter_engines([args.engines])
@@ -382,12 +419,18 @@ def main() -> int:
         active_preset = f"category '{args.category}'"
 
     searches = build_searches(term, engines)
+    if args.shuffle:
+        random.shuffle(searches)
 
     cmd_display = " ".join(browser_cmd)
     if args.dry_run:
         print(f"\n🔍 Search Query: \"{term}\"")
         print(f"🏷️  Profile: {active_preset}")
         print(f"🌐 Browser: {cmd_display} ({'Chromium-based' if is_chromium else 'Firefox-based'})")
+        if args.human:
+            print("👤 Human Simulation: Enabled (shuffled order, dynamic jitter 1.0s-2.6s)")
+        elif args.shuffle:
+            print("🔀 Shuffled Order: Enabled")
         print(f"📑 Total engines: {len(searches)}\n")
         for name, url in searches:
             print(f"  [{name:<16}] {url}")
@@ -395,7 +438,8 @@ def main() -> int:
         return 0
 
     mode_label = "private/incognito" if args.private else "standard"
-    print(f"🔍 Multi-Search | Query: \"{term}\" | Profile: {active_preset} | Browser: {cmd_display} | Mode: {mode_label}")
+    human_tag = " | Human Simulation: ON" if args.human else ""
+    print(f"🔍 Multi-Search | Query: \"{term}\" | Profile: {active_preset} | Browser: {cmd_display} | Mode: {mode_label}{human_tag}")
 
     try:
         # 1) Open first URL in a new window
@@ -409,17 +453,20 @@ def main() -> int:
         subprocess.Popen(browser_cmd + window_flags)
 
         if len(searches) > 1:
-            time.sleep(args.initial_delay)
+            init_wait = calculate_delay(args.initial_delay, 0.4 if args.human else 0.0)
+            time.sleep(init_wait)
 
             # 2) Open subsequent URLs in new tabs
             for idx, (name, url) in enumerate(searches[1:], start=2):
-                print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}...")
+                wait_time = calculate_delay(args.delay, args.jitter)
+                delay_info = f" (interval: {wait_time}s)" if (args.human or args.jitter > 0) else ""
+                print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}{delay_info}...")
                 if is_chromium:
                     tab_flags = ["--incognito", url] if args.private else [url]
                 else:
                     tab_flags = ["--new-tab", url]
                 subprocess.Popen(browser_cmd + tab_flags)
-                time.sleep(args.delay)
+                time.sleep(wait_time)
 
     except KeyboardInterrupt:
         print("\n\n⚠️ Interrupted by user.", file=sys.stderr)

@@ -115,12 +115,22 @@ msearch -b firefox -p -c infra target-domain.com
 msearch -b chrome kubernetes architecture
 ```
 
-### 8. Preview URLs without Opening Browser (`--dry-run`)
+### 8. Human Simulation & Anti-Bot Pacing (`-H` / `--human`)
+When conducting repeated searches, search engines like Google and Yandex can trigger CAPTCHAs due to rapid, deterministic tab opening. Use the `-H` flag to simulate human-like behavior:
+```bash
+# Automatically shuffles engine order and applies realistic randomized delay jitter (1.0s - 2.6s)
+msearch -H -c osint "target username"
+
+# Or manually customize delay and jitter variance:
+msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
+```
+
+### 9. Preview URLs without Opening Browser (`--dry-run`)
 ```bash
 msearch --dry-run -c osint "john doe"
 ```
 
-### 9. Discovery & Help Commands
+### 10. Discovery & Help Commands
 ```bash
 msearch --list-categories  # View available category presets (-c)
 msearch --list-engines     # View all 16 supported search engines (-e)
@@ -136,6 +146,9 @@ msearch --list-browsers    # View detected installed browsers (-b)
 | `QUERY` | `[string...]` | Search query (multiple words are joined automatically) |
 | `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `all` |
 | `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `shodan,vt,intelx`) |
+| `-H`, `--human` | None | Simulate human pacing: random delay intervals (jitter 1.0s-2.6s) & shuffled order |
+| `--shuffle` | None | Randomize the opening order of search engine tabs to break request patterns |
+| `-j`, `--jitter` | `<sec>` | Add random variation (±SECONDS) around tab delay intervals (e.g. `-j 0.8`) |
 | `-lc`, `--list-categories`| None | Display available category presets and exit |
 | `-l`, `--list-engines` | None | Display all supported search engines and exit |
 | `-lb`, `--list-browsers` | None | Scan and list detected installed web browsers and exit |
