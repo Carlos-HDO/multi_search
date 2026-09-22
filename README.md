@@ -16,14 +16,15 @@ During OSINT investigations, pivoting on an indicator (a handle, domain, email, 
 
 ## ⚡ Features
 
-- **Built for OSINT & Reconnaissance**: Dispatches queries across 16 specialized search engines and intelligence sources.
+- **Built for OSINT & Security Research**: Dispatches queries across 24 specialized search engines, vulnerability databases, and intelligence sources.
 - **Dedicated Intelligence Profiles (`-c` / `--category`)**:
   - `web` **(DEFAULT)**: Clean multi-index web search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
   - `osint`: Deep investigations, person/entity footprinting, darkweb/paste dumps, reverse search, and archives (Google, Brave, Yandex, IntelX, Wayback Machine, Archive.today, URLScan, Reddit).
   - `infra`: Network infrastructure, open ports, TLS/SSL certificates, and threat intel (Shodan, URLScan, VirusTotal, IntelX).
   - `code`: Public codebases, leaked secrets, exposed tokens, and author footprinting (GitHub Code, Grep.app, Google).
   - `archive`: Historical snapshots and recovery of deleted pages (Wayback Machine, Archive.today).
-  - `all`: Full spectrum sweep across all 16 engines simultaneously.
+  - `pentest` / `exploit`: Penetration testing, exploits, CVEs, security advisories, and PoC repositories (Exploit-DB, Sploitus, Packet Storm, Rapid7 Metasploit, SecLists, GitHub PoC, NVD NIST, Vulners).
+  - `all`: Full spectrum sweep across all 24 engines simultaneously.
 - **Smart Browser Detection & Aliases**: Automatically scans and prioritizes installed browsers (LibreWolf, Firefox, Brave, Chrome, Chromium, Tor Browser). Supports instant aliases like `-b brave` or `-b chrome`.
 - **Surgical Engine Targeting (`-e` / `--engines`)**: Run queries on specific engines using aliases (e.g. `-e shodan,vt,intelx`).
 - **Private / Incognito Browsing (`-p` / `--private`)**: Automatically uses `--private-window` (Firefox/LibreWolf) or `--incognito` (Brave/Chrome/Chromium) to ensure clean unprofiled investigations.
@@ -92,8 +93,21 @@ Recover deleted blog posts, old social media pages, or offline websites via Wayb
 msearch -c archive https://example.com/deleted-article
 ```
 
-### 6. Specific Engine Targeting (`-e` / `--engines`)
-Target precise engines using shortcuts (`shodan`, `vt`, `intelx`, `ddg`, `sp`, `gh`, etc.):
+### 6. Pentest & Exploit Research (`-c pentest` / `-c exploit`)
+Search for public exploits, Proof-of-Concepts (PoCs), CVE details, Metasploit modules, and security advisories across Exploit-DB, Sploitus, Packet Storm, Rapid7 Metasploit, SecLists, GitHub PoC, NVD NIST, and Vulners:
+```bash
+# Research exploits for a specific software version
+msearch -c pentest "vsftpd 2.3.4"
+
+# Research a specific CVE across exploit databases and GitHub PoCs
+msearch -c exploit "CVE-2024-3094"
+
+# Query specific exploit repositories directly
+msearch -e exploitdb,sploitus,packetstorm "OpenSSH 8.2"
+```
+
+### 7. Specific Engine Targeting (`-e` / `--engines`)
+Target precise engines using shortcuts (`shodan`, `vt`, `intelx`, `edb`, `sploit`, `ps`, `msf`, `poc`, etc.):
 ```bash
 # Threat intel lookup on an IP
 msearch -e shodan,urlscan,virustotal 1.1.1.1
@@ -102,7 +116,7 @@ msearch -e shodan,urlscan,virustotal 1.1.1.1
 msearch -e brave,startpage,duckduckgo "zero-day vulnerability"
 ```
 
-### 7. Choosing a Browser (`-b` / `--browser`)
+### 8. Choosing a Browser (`-b` / `--browser`)
 Switch browsers effortlessly with aliases:
 ```bash
 # Use Brave Browser (Flatpak or Native)
@@ -115,7 +129,7 @@ msearch -b firefox -p -c infra target-domain.com
 msearch -b chrome kubernetes architecture
 ```
 
-### 8. Human Simulation & Anti-Bot Evasion (`-H` / `--human`)
+### 9. Human Simulation & Anti-Bot Evasion (`-H` / `--human`)
 
 When conducting repeated queries, major search engines (particularly Google and Yandex) deploy behavioral heuristics that detect automated scripts and trigger CAPTCHAs. 
 
@@ -144,15 +158,15 @@ msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
 > - **Use your daily browser profile:**  
 >   Running `msearch` on your primary daily browser (where you already have accumulated legitimate cookies and active session history) in combination with the **`-H`** flag drastically reduces the occurrence of verification challenges.
 
-### 9. Preview URLs without Opening Browser (`--dry-run`)
+### 10. Preview URLs without Opening Browser (`--dry-run`)
 ```bash
 msearch --dry-run -c osint "john doe"
 ```
 
-### 10. Discovery & Help Commands
+### 11. Discovery & Help Commands
 ```bash
 msearch --list-categories  # View available category presets (-c)
-msearch --list-engines     # View all 16 supported search engines (-e)
+msearch --list-engines     # View all 24 supported search engines (-e)
 msearch --list-browsers    # View detected installed browsers (-b)
 ```
 
@@ -163,8 +177,8 @@ msearch --list-browsers    # View detected installed browsers (-b)
 | Flag | Argument | Description |
 | :--- | :--- | :--- |
 | `QUERY` | `[string...]` | Search query (multiple words are joined automatically) |
-| `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `all` |
-| `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `shodan,vt,intelx`) |
+| `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `pentest`, `exploit`, `all` |
+| `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `shodan,vt,intelx,edb`) |
 | `-H`, `--human` | None | Simulate human pacing: random delay intervals (jitter 1.0s-2.6s) & shuffled order |
 | `--shuffle` | None | Randomize the opening order of search engine tabs to break request patterns |
 | `-j`, `--jitter` | `<sec>` | Add random variation (±SECONDS) around tab delay intervals (e.g. `-j 0.8`) |

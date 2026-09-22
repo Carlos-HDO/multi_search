@@ -42,6 +42,16 @@ ENGINES: list[tuple[str, str, str]] = [
     ("URLScan",         "urlscan",       "https://urlscan.io/search/#{q}"),
     ("Shodan",          "shodan",        "https://www.shodan.io/search?query={q}"),
     ("VirusTotal",      "virustotal",    "https://www.virustotal.com/gui/search/{q}"),
+
+    # Pentest & Vulnerability Research: Exploits, CVEs & PoCs
+    ("Exploit-DB",      "exploitdb",     "https://www.exploit-db.com/search?q={q}"),
+    ("Sploitus",        "sploitus",      "https://sploitus.com/?query={q}"),
+    ("Packet Storm",    "packetstorm",   "https://packetstormsecurity.com/search/?q={q}"),
+    ("Rapid7 (MSF)",    "rapid7",        "https://www.rapid7.com/db/?q={q}"),
+    ("SecLists",        "seclists",      "https://seclists.org/search/?q={q}"),
+    ("GitHub PoC",      "githubpoc",     "https://github.com/search?q={q}+poc+OR+exploit&type=repositories"),
+    ("NVD (NIST)",      "nvd",           "https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query={q}&search_type=all"),
+    ("Vulners",         "vulners",       "https://vulners.com/search?query={q}"),
 ]
 
 ALIASES: dict[str, str] = {
@@ -54,6 +64,12 @@ ALIASES: dict[str, str] = {
     "gh": "github",
     "grep": "grepapp",
     "vt": "virustotal",
+    "edb": "exploitdb",
+    "ps": "packetstorm",
+    "msf": "rapid7",
+    "metasploit": "rapid7",
+    "poc": "githubpoc",
+    "sploit": "sploitus",
 }
 
 CATEGORIES: dict[str, tuple[str, list[str]]] = {
@@ -76,6 +92,14 @@ CATEGORIES: dict[str, tuple[str, list[str]]] = {
     "archive": (
         "Historical snapshots, cached sites, and deleted page recovery",
         ["wayback", "archive-today"],
+    ),
+    "pentest": (
+        "Penetration testing, exploits, CVEs, security advisories, and PoC repositories",
+        ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
+    ),
+    "exploit": (
+        "Alias for pentest profile (exploits, PoCs, Metasploit modules)",
+        ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
     ),
     "all": (
         "All registered search engines across all domains",
@@ -214,7 +238,8 @@ def list_engines() -> None:
 
     print("\nShortcuts accepted in -e/--engines:")
     print("  ddg -> duckduckgo, sp -> startpage, perp -> perplexity, wb -> wayback,")
-    print("  at -> archive-today, gh -> github, grep -> grepapp, vt -> virustotal")
+    print("  at -> archive-today, gh -> github, grep -> grepapp, vt -> virustotal,")
+    print("  edb -> exploitdb, sploit -> sploitus, ps -> packetstorm, msf -> rapid7, poc -> githubpoc")
 
 
 def list_categories() -> None:
