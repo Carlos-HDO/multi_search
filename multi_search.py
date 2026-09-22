@@ -2,6 +2,7 @@
 """
 Multi-Search CLI Tool
 Dispatches simultaneous searches across multiple web search engines in browser tabs.
+Optimized for General Web Research and OSINT (Open Source Intelligence).
 """
 
 from __future__ import annotations
@@ -15,23 +16,70 @@ import time
 from urllib.parse import quote_plus
 
 ENGINES: list[tuple[str, str, str]] = [
-    ("Google",     "google",      "https://www.google.com/search?q={q}"),
-    ("Bing",       "bing",        "https://www.bing.com/search?q={q}"),
-    ("DuckDuckGo", "duckduckgo",  "https://duckduckgo.com/?q={q}"),
-    ("Startpage",  "startpage",   "https://www.startpage.com/sp/search?query={q}"),
-    ("Ecosia",     "ecosia",      "https://www.ecosia.org/search?q={q}"),
-    ("Qwant",      "qwant",       "https://www.qwant.com/?q={q}"),
-    ("Yahoo",      "yahoo",       "https://search.yahoo.com/search?p={q}"),
-    ("Yandex",     "yandex",      "https://yandex.com/search/?text={q}"),
-    ("Mojeek",     "mojeek",      "https://www.mojeek.com/search?q={q}"),
-    ("Perplexity", "perplexity",  "https://www.perplexity.ai/search?q={q}"),
-    ("Brave",      "brave",       "https://search.brave.com/search?q={q}"),
+    # General & Independent Web Indexes
+    ("Google",          "google",        "https://www.google.com/search?q={q}"),
+    ("Brave",           "brave",         "https://search.brave.com/search?q={q}"),
+    ("DuckDuckGo",      "duckduckgo",    "https://duckduckgo.com/?q={q}"),
+    ("Startpage",       "startpage",     "https://www.startpage.com/sp/search?query={q}"),
+    ("Yandex",          "yandex",        "https://yandex.com/search/?text={q}"),
+    ("Bing",            "bing",          "https://www.bing.com/search?q={q}"),
+    ("Perplexity",      "perplexity",    "https://www.perplexity.ai/search?q={q}"),
+
+    # OSINT: Archives & Historical Caches
+    ("Wayback Machine", "wayback",       "https://web.archive.org/web/*/{q}"),
+    ("Archive.today",   "archive-today", "https://archive.ph/{q}"),
+
+    # OSINT: Leaks, Pastes & Public Intelligence
+    ("Intelligence X",  "intelx",        "https://intelx.io/?s={q}"),
+    ("Reddit",          "reddit",        "https://www.reddit.com/search/?q={q}"),
+
+    # OSINT: Code, Secrets & Developer Footprint
+    ("GitHub Code",     "github",        "https://github.com/search?q={q}&type=code"),
+    ("Grep.app",        "grepapp",       "https://grep.app/search?q={q}"),
+
+    # OSINT: Infrastructure, Network & Threat Intel
+    ("URLScan",         "urlscan",       "https://urlscan.io/search/#{q}"),
+    ("Shodan",          "shodan",        "https://www.shodan.io/search?query={q}"),
+    ("VirusTotal",      "virustotal",    "https://www.virustotal.com/gui/search/{q}"),
 ]
 
 ALIASES: dict[str, str] = {
     "ddg": "duckduckgo",
     "sp": "startpage",
     "perp": "perplexity",
+    "wb": "wayback",
+    "archive": "wayback",
+    "at": "archive-today",
+    "gh": "github",
+    "grep": "grepapp",
+    "vt": "virustotal",
+}
+
+CATEGORIES: dict[str, tuple[str, list[str]]] = {
+    "web": (
+        "General web search across unprofiled & independent engines",
+        ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"],
+    ),
+    "osint": (
+        "Core intelligence, archives, leak dumps, and investigative search",
+        ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"],
+    ),
+    "infra": (
+        "Network infrastructure, open ports, certificates, and threat intel",
+        ["shodan", "urlscan", "virustotal", "intelx"],
+    ),
+    "code": (
+        "Public repositories, code search, API keys, and developer footprinting",
+        ["github", "grepapp", "google"],
+    ),
+    "archive": (
+        "Historical snapshots, cached sites, and deleted page recovery",
+        ["wayback", "archive-today"],
+    ),
+    "all": (
+        "All registered search engines across all domains",
+        [key for _, key, _ in ENGINES],
+    ),
 }
 
 # (Display Name, Alias, [Native Binaries], Flatpak App ID, is_chromium)
@@ -100,7 +148,7 @@ def detect_default_browser() -> str:
     if not installed:
         return "flatpak run io.gitlab.librewolf-community"
 
-    # Preference order: LibreWolf -> Firefox -> Brave -> Chrome -> Chromium -> First available
+    # Priority order: LibreWolf -> Firefox -> Brave -> Chrome -> Chromium -> First available
     priority = ["librewolf", "firefox", "brave", "chrome", "chromium"]
     by_alias = {b.alias: b for b in installed}
 
@@ -133,24 +181,19 @@ def list_browsers() -> None:
 
 
 def resolve_browser(input_browser: str) -> tuple[list[str], bool]:
-    """
-    Resolves a browser input (alias or raw command) into (command_list, is_chromium).
-    """
+    """Resolves a browser input (alias or raw command) into (command_list, is_chromium)."""
     clean = input_browser.strip()
     browsers = get_installed_browsers()
 
-    # Match installed browser alias
     for b in browsers:
         if clean.lower() == b.alias:
             return shlex.split(b.command), b.is_chromium
 
-    # Match known browser definition even if not in installed list
     for _, alias, bins, flatpak_id, is_chromium in KNOWN_BROWSERS:
         if clean.lower() == alias:
             cmd = bins[0] if shutil.which(bins[0]) else f"flatpak run {flatpak_id}"
             return shlex.split(cmd), is_chromium
 
-    # Raw command
     cmd_list = shlex.split(clean)
     binary_name = cmd_list[0].lower() if cmd_list else ""
     is_chrom = any(
@@ -163,11 +206,25 @@ def resolve_browser(input_browser: str) -> tuple[list[str], bool]:
 def list_engines() -> None:
     """Displays the list of supported search engines."""
     print("Supported search engines:\n")
-    print(f"  {'Identifier':<15} {'Name':<15} {'Base URL'}")
-    print(f"  {'-'*13:<15} {'-'*13:<15} {'-'*30}")
+    print(f"  {'Identifier':<16} {'Name':<18} {'Base URL'}")
+    print(f"  {'-'*14:<16} {'-'*16:<18} {'-'*40}")
     for name, key, tpl in ENGINES:
-        print(f"  {key:<15} {name:<15} {tpl}")
-    print("\nAccepted shortcuts in -e/--engines filter: ddg (duckduckgo), sp (startpage), perp (perplexity)")
+        print(f"  {key:<16} {name:<18} {tpl}")
+
+    print("\nShortcuts accepted in -e/--engines:")
+    print("  ddg -> duckduckgo, sp -> startpage, perp -> perplexity, wb -> wayback,")
+    print("  at -> archive-today, gh -> github, grep -> grepapp, vt -> virustotal")
+
+
+def list_categories() -> None:
+    """Displays available search category presets."""
+    print("Available category presets (-c / --category):\n")
+    print(f"  {'Category':<12} {'Engines Count':<15} {'Description'}")
+    print(f"  {'-'*10:<12} {'-'*13:<15} {'-'*50}")
+    for cat_name, (desc, engines) in CATEGORIES.items():
+        print(f"  {cat_name:<12} {len(engines):<15} {desc}")
+        engines_str = ", ".join(engines)
+        print(f"  {'':<12} Engines: {engines_str}\n")
 
 
 def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
@@ -189,6 +246,19 @@ def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
     return filtered
 
 
+def get_engines_by_category(category: str) -> list[tuple[str, str, str]]:
+    """Returns engines corresponding to a category preset."""
+    cat_lower = category.strip().lower()
+    if cat_lower not in CATEGORIES:
+        valid_cats = ", ".join(CATEGORIES.keys())
+        print(f"Error: Unknown category '{category}'. Available categories: {valid_cats}", file=sys.stderr)
+        sys.exit(2)
+
+    _, keys = CATEGORIES[cat_lower]
+    key_set = set(keys)
+    return [e for e in ENGINES if e[1] in key_set]
+
+
 def build_searches(term: str, engines: list[tuple[str, str, str]]) -> list[tuple[str, str]]:
     """Generates (Name, formatted URL) pairs for the given search term."""
     q = quote_plus(term)
@@ -199,14 +269,17 @@ def main() -> int:
     default_browser = detect_default_browser()
 
     p = argparse.ArgumentParser(
-        description="Multi-Search: Opens multiple browser tabs, each searching across a different engine.",
+        description="Multi-Search: Opens multiple browser tabs across search engines and OSINT sources.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Examples:\n"
                "  %(prog)s python web scraping\n"
-               "  %(prog)s -b brave -e google,brave,ddg cybersecurity\n"
-               "  %(prog)s -p -b firefox defensive security\n"
-               "  %(prog)s --list-browsers\n"
-               "  %(prog)s --dry-run docker networking\n",
+               "  %(prog)s -c osint john doe target\n"
+               "  %(prog)s -c infra malicious-domain.com\n"
+               "  %(prog)s -c code AWS_SECRET_ACCESS_KEY\n"
+               "  %(prog)s -c archive https://example.com/deleted-article\n"
+               "  %(prog)s -b brave -e shodan,urlscan,vt 1.1.1.1\n"
+               "  %(prog)s --list-categories\n"
+               "  %(prog)s --dry-run -c osint suspicious-actor\n",
     )
     p.add_argument(
         "termo",
@@ -215,9 +288,19 @@ def main() -> int:
         help="Search query (quotes are optional, multiple words are joined automatically).",
     )
     p.add_argument(
+        "-c", "--category",
+        default="web",
+        help="Category preset to search (default: 'web'). Options: web, osint, infra, code, archive, all.",
+    )
+    p.add_argument(
         "-e", "--engines",
         metavar="ENGINE,ENGINE",
-        help="Filter search engines by comma-separated names (e.g. -e google,brave,ddg).",
+        help="Filter specific engines by comma-separated names/aliases (e.g. -e shodan,vt,intelx).",
+    )
+    p.add_argument(
+        "-lc", "--list-categories",
+        action="store_true",
+        help="List available search categories and exit.",
     )
     p.add_argument(
         "-l", "--list-engines",
@@ -259,12 +342,16 @@ def main() -> int:
 
     args = p.parse_args()
 
-    if args.list_browsers:
-        list_browsers()
+    if args.list_categories:
+        list_categories()
         return 0
 
     if args.list_engines:
         list_engines()
+        return 0
+
+    if args.list_browsers:
+        list_browsers()
         return 0
 
     if not args.termo:
@@ -286,24 +373,29 @@ def main() -> int:
         print(f"Error: Executable '{browser_cmd[0]}' not found in PATH.", file=sys.stderr)
         return 1
 
-    engines = ENGINES
+    # Resolve target engines
     if args.engines:
         engines = filter_engines([args.engines])
+        active_preset = f"custom ({len(engines)} engines)"
+    else:
+        engines = get_engines_by_category(args.category)
+        active_preset = f"category '{args.category}'"
 
     searches = build_searches(term, engines)
 
     cmd_display = " ".join(browser_cmd)
     if args.dry_run:
         print(f"\n🔍 Search Query: \"{term}\"")
+        print(f"🏷️  Profile: {active_preset}")
         print(f"🌐 Browser: {cmd_display} ({'Chromium-based' if is_chromium else 'Firefox-based'})")
         print(f"📑 Total engines: {len(searches)}\n")
         for name, url in searches:
-            print(f"  [{name:<11}] {url}")
+            print(f"  [{name:<16}] {url}")
         print()
         return 0
 
     mode_label = "private/incognito" if args.private else "standard"
-    print(f"🔍 Multi-Search | Query: \"{term}\" | Engines: {len(searches)} | Browser: {cmd_display} | Mode: {mode_label}")
+    print(f"🔍 Multi-Search | Query: \"{term}\" | Profile: {active_preset} | Browser: {cmd_display} | Mode: {mode_label}")
 
     try:
         # 1) Open first URL in a new window
