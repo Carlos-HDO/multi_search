@@ -1,24 +1,34 @@
 # Multi-Search (`msearch`)
 
-A lightning-fast command-line productivity tool that triggers simultaneous searches across multiple web search engines and OSINT intelligence sources in browser tabs (LibreWolf, Firefox, Brave, Chrome, or any browser of choice).
+A command-line investigation and reconnaissance tool originally designed for **OSINT (Open Source Intelligence)** workflows, threat intelligence, and cyber investigations. It allows researchers to fire simultaneous, coordinated queries across multiple search engines and specialized intelligence platforms directly into browser tabs (LibreWolf, Firefox, Brave, Chrome, or any browser of choice).
+
+---
+
+## 🎯 Motivation & Design
+
+During OSINT investigations, pivoting on an indicator (a handle, domain, email, IP address, or leaked string) typically requires querying multiple independent search indexes, threat intel databases, code repositories, and web archives. Doing this manually across dozens of open tabs is repetitive and prone to bias.
+
+`msearch` automates this entire discovery cycle in a single command, organizing search engines into dedicated intelligence profiles with controlled pacing to prevent browser lag and rate-limiting.
+
+> **Default Behavior**: If no category or flags are specified (`msearch <query>`), the tool **automatically defaults to the `web` profile**, opening 7 unprofiled, distinct search engines (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, and Perplexity) for clean baseline reconnaissance without overwhelming your workstation.
 
 ---
 
 ## ⚡ Features
 
-- **Multi-Engine Orchestration**: Dispatches queries across 16 specialized search engines and intelligence sources.
-- **OSINT & Intelligence Profiles (`-c` / `--category`)**:
-  - `web`: General independent search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
-  - `osint`: Deep open-source investigations, archives, darkweb/paste dumps, and reverse search (Google, Brave, Yandex, IntelX, Wayback Machine, Archive.today, URLScan, Reddit).
-  - `infra`: Network infrastructure, open ports, certificates, and threats (Shodan, URLScan, VirusTotal, IntelX).
-  - `code`: Public codebases, leaked credentials, API tokens, and developer footprinting (GitHub Code, Grep.app, Google).
+- **Built for OSINT & Reconnaissance**: Dispatches queries across 16 specialized search engines and intelligence sources.
+- **Dedicated Intelligence Profiles (`-c` / `--category`)**:
+  - `web` **(DEFAULT)**: Clean multi-index web search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
+  - `osint`: Deep investigations, person/entity footprinting, darkweb/paste dumps, reverse search, and archives (Google, Brave, Yandex, IntelX, Wayback Machine, Archive.today, URLScan, Reddit).
+  - `infra`: Network infrastructure, open ports, TLS/SSL certificates, and threat intel (Shodan, URLScan, VirusTotal, IntelX).
+  - `code`: Public codebases, leaked secrets, exposed tokens, and author footprinting (GitHub Code, Grep.app, Google).
   - `archive`: Historical snapshots and recovery of deleted pages (Wayback Machine, Archive.today).
-  - `all`: Full spectrum sweep across all 16 engines.
-- **Smart Browser Detection & Aliases**: Automatically detects native LibreWolf, Flatpak LibreWolf, Firefox, Chrome, Brave, Chromium, and Tor Browser. Use short aliases like `-b brave` or `-b chrome`.
-- **Engine Filtering (`-e` / `--engines`)**: Run searches on specific engines using aliases (e.g. `-e shodan,vt,intelx`).
-- **Private / Incognito Mode (`-p` / `--private`)**: Launches queries in isolated private browsing (supports both Firefox `--private-window` and Chromium `--incognito`).
-- **Pacing Control (`-d` / `--delay`)**: Spaced tab dispatching to prevent browser freezing, dropped tabs, or search engine rate-limiting.
-- **Dry-Run Inspection (`--dry-run`)**: Preview generated URLs directly in your terminal without launching the browser.
+  - `all`: Full spectrum sweep across all 16 engines simultaneously.
+- **Smart Browser Detection & Aliases**: Automatically scans and prioritizes installed browsers (LibreWolf, Firefox, Brave, Chrome, Chromium, Tor Browser). Supports instant aliases like `-b brave` or `-b chrome`.
+- **Surgical Engine Targeting (`-e` / `--engines`)**: Run queries on specific engines using aliases (e.g. `-e shodan,vt,intelx`).
+- **Private / Incognito Browsing (`-p` / `--private`)**: Automatically uses `--private-window` (Firefox/LibreWolf) or `--incognito` (Brave/Chrome/Chromium) to ensure clean unprofiled investigations.
+- **Pacing Control (`-d` / `--delay`)**: Spaced tab dispatching to prevent browser freezing, dropped tabs, or search engine CAPTCHAs.
+- **Dry-Run Inspection (`--dry-run`)**: Preview generated URLs in your terminal before launching the browser.
 
 ---
 
@@ -40,7 +50,7 @@ By default, `msearch` will automatically detect and prioritize installed browser
 5. Chromium (Native or Snap)
 6. Tor Browser (`org.torproject.torbrowser-launcher`)
 
-To see all browsers detected on your system:
+To inspect all browsers detected on your system:
 ```bash
 msearch --list-browsers
 ```
@@ -49,66 +59,72 @@ msearch --list-browsers
 
 ## 🚀 Usage & Examples
 
-### Basic Web Search
-Quotes around multi-word queries are optional:
+### 1. Default Web Search (`web` profile)
+If you provide only the search query without any flags, `msearch` automatically defaults to the **`web` profile**:
 ```bash
-# Default category (web: Google, Brave, DDG, Startpage, Yandex, Bing, Perplexity)
+# Automatically searches: Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity
 msearch python web scraping
 ```
 
-### OSINT & Intelligence Searches (`-c` / `--category`)
+### 2. OSINT & Entity Investigations (`-c osint`)
+Investigate a username, person, or organization across general engines, Intelligence X leaks, archives, and Reddit:
 ```bash
-# General OSINT investigation (Google, Brave, Yandex, IntelX, Wayback, Archive.today, URLScan, Reddit)
-msearch -c osint "john doe"
+msearch -p -c osint "target username"
+```
 
-# Network & Infrastructure reconnaissance (Shodan, URLScan, VirusTotal, IntelX)
-msearch -c infra target-domain.com
+### 3. Infrastructure & Network Reconnaissance (`-c infra`)
+Query an IP address, domain, or certificate against Shodan, URLScan, VirusTotal, and Intelligence X:
+```bash
+msearch -c infra malicious-c2.com
+msearch -c infra 185.220.101.5
+```
 
-# Leak & credential hunting in public git repositories (GitHub Code, Grep.app, Google)
+### 4. Code & Leaked Secret Reconnaissance (`-c code`)
+Hunt for leaked API keys, tokens, or repository signatures on GitHub, Grep.app, and Google:
+```bash
+msearch -c code "AIzaSy"
 msearch -c code "AWS_SECRET_ACCESS_KEY"
+```
 
-# Retrieve historical snapshots of a deleted page or profile
+### 5. Historical Snapshots & Deleted Pages (`-c archive`)
+Recover deleted blog posts, old social media pages, or offline websites via Wayback Machine and Archive.today:
+```bash
 msearch -c archive https://example.com/deleted-article
 ```
 
-### Specific Engine Selection (`-e` / `--engines`)
-Target specific engines directly using names or shortcuts (`shodan`, `vt`, `intelx`, `ddg`, `sp`, `gh`, etc.):
+### 6. Specific Engine Targeting (`-e` / `--engines`)
+Target precise engines using shortcuts (`shodan`, `vt`, `intelx`, `ddg`, `sp`, `gh`, etc.):
 ```bash
 # Threat intel lookup on an IP
 msearch -e shodan,urlscan,virustotal 1.1.1.1
 
-# Search only Google, Brave, and DuckDuckGo
-msearch -e google,brave,ddg cybersecurity news
+# Privacy-focused search
+msearch -e brave,startpage,duckduckgo "zero-day vulnerability"
 ```
 
-### Private / Incognito Browsing (`-p` / `--private`)
-Opens results in a newly spawned private/incognito window:
-```bash
-msearch -p -c osint suspicious-actor
-```
-
-### Choosing a Browser (`-b` / `--browser`)
-Use short aliases or full commands:
+### 7. Choosing a Browser (`-b` / `--browser`)
+Switch browsers effortlessly with aliases:
 ```bash
 # Use Brave Browser (Flatpak or Native)
 msearch -b brave -c osint target-handle
 
-# Use Google Chrome or Firefox
+# Use Firefox in private mode
+msearch -b firefox -p -c infra target-domain.com
+
+# Use Google Chrome
 msearch -b chrome kubernetes architecture
-msearch -b firefox -p threat modeling
 ```
 
-### Dry-Run Mode (`--dry-run`)
-Preview all generated URLs in the terminal without opening any tabs:
+### 8. Preview URLs without Opening Browser (`--dry-run`)
 ```bash
-msearch --dry-run -c infra evil-corp.com
+msearch --dry-run -c osint "john doe"
 ```
 
-### List Categories & Engines
+### 9. Discovery & Help Commands
 ```bash
-msearch --list-categories  # View category presets and their engine members
-msearch --list-engines     # View all supported engines and aliases
-msearch --list-browsers    # View detected browsers on the system
+msearch --list-categories  # View available category presets (-c)
+msearch --list-engines     # View all 16 supported search engines (-e)
+msearch --list-browsers    # View detected installed browsers (-b)
 ```
 
 ---
@@ -118,7 +134,7 @@ msearch --list-browsers    # View detected browsers on the system
 | Flag | Argument | Description |
 | :--- | :--- | :--- |
 | `QUERY` | `[string...]` | Search query (multiple words are joined automatically) |
-| `-c`, `--category` | `<name>` | Category preset: `web` (default), `osint`, `infra`, `code`, `archive`, `all` |
+| `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `all` |
 | `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `shodan,vt,intelx`) |
 | `-lc`, `--list-categories`| None | Display available category presets and exit |
 | `-l`, `--list-engines` | None | Display all supported search engines and exit |
@@ -145,6 +161,12 @@ Ensure `~/.local/bin` is in your `PATH`:
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # For Bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc    # For Zsh
+```
+
+### Shell Alias (Optional)
+Alternatively, add a short alias like `ms` to your `~/.bashrc` or `~/.zshrc`:
+```bash
+alias ms='msearch'
 ```
 
 ---
