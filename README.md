@@ -211,8 +211,15 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc    # For Zsh
 
 ### Shell Alias (Optional)
 Alternatively, add a short alias like `ms` to your `~/.bashrc` or `~/.zshrc`:
+
+#### Bash:
 ```bash
-alias ms='msearch'
+echo "alias ms='msearch'" >> ~/.bashrc && source ~/.bashrc
+```
+
+#### Zsh:
+```bash
+echo "alias ms='msearch'" >> ~/.zshrc && source ~/.zshrc
 ```
 
 ---
