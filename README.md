@@ -69,6 +69,15 @@ echo "alias ms='msearch'" >> ~/.zshrc && source ~/.zshrc
 
 ## 🖥️ Interactive Web UI Command Center
 
+<!-- Screenshot Placeholder: Place your web UI screenshot in docs/assets/web_ui.png or update the link below -->
+<div align="center">
+
+![Multi-Search OSINT Recon Hub & Command Center](assets/web_ui_dashboard.png)
+
+*Interactive Command Center with 7 Intelligence Profiles, 24 Search Engines, Platform CRUD, and Live CLI Generator.*
+
+</div>
+
 Simply run `msearch` (or `ms`) with no arguments:
 
 ```bash
@@ -87,19 +96,24 @@ This starts the embedded local web server and automatically opens `http://localh
 ```
 
 ### Web UI Features:
-1. **Profile Cards**: Visual cards with aligned engine count badges and bottom-aligned descriptions. Clicking a profile instantly selects its active platforms.
-2. **Platform Management (CRUD)**:
-   - `➕ Nova Plataforma`: Add custom search engines with visual category tags.
-   - `✏️ Editar`: Update existing URLs and profile associations.
-   - `✕ Remover`: Delete custom or unwanted engines.
-   - `Marcar Todas` / `Desmarcar Todas`: Bulk selection controls.
-   - `↺ Restaurar Padrões`: Factory reset to the 24 default platforms.
-3. **Execution Controls**:
-   - Browser selector (showing all detected system browsers).
-   - Interval pacing with presets (0.3s, 0.6s, 1.2s, 2.0s, 3.0s, 5.0s) and custom seconds.
-   - Toggle buttons for Private Mode (`-p`) and Human Simulation (`-H`) with explanatory info modals.
-4. **Live CLI Command Builder**: Generates the exact equivalent `msearch` CLI command with a one-click copy button.
-5. **Direct OS Launching**: `🚀 Abrir Todas as Abas` triggers native background browser execution on the host operating system.
+1. **🌐 Bilingual Interface (EN / PT)**:
+   - English default with instant header toggle (`🇺🇸 EN` / `🇧🇷 PT`) and persistent preference.
+2. **🏷️ 7 Intelligence Profile Cards**:
+   - Aligned engine count badges and bottom-aligned descriptions. Clicking a profile instantly activates its platform set.
+3. **🛠️ Platform Management (CRUD)**:
+   - `➕ New Platform`: Register custom search platforms with `{q}` query placeholders and custom category tags.
+   - `✏️ Edit`: Update URL templates and category assignments.
+   - `✕ Remove`: Delete custom or unwanted engines.
+   - `Select All` / `Deselect All`: Instant bulk selection controls.
+   - `↺ Restore Defaults`: Factory reset back to 24 default platforms.
+4. **⚙️ Execution Controls**:
+   - Browser selector (Native, Flatpak, and Snap detection).
+   - Delay intervals presets (0.3s, 0.6s, 1.2s, 2.0s, 3.0s, 5.0s) and custom second values.
+   - Private / Incognito Mode (`-p`) and Human Simulation with Jitter (`-H`) toggles with explanatory info popups.
+5. **💻 Live CLI Command Generator**:
+   - Generates the exact `msearch` CLI command corresponding to selected GUI parameters with a one-click copy button.
+6. **🚀 Direct OS-Level Launching**:
+   - `🚀 Open All Tabs` triggers background browser execution natively on the host operating system.
 
 ---
 
