@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Search — OSINT Recon Hub & Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #06090f;
+      --bg-surface: #0d131f;
+      --bg-card: rgba(13, 19, 31, 0.75);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(6, 182, 212, 0.45);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-purple: #a855f7;
+      --accent-rose: #f43f5e;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.06) 0%, transparent 45%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 1.5rem 1rem 3rem 1rem;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      font-size: 1.8rem;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius-md);
+      padding: 0.35rem 0.55rem;
+      line-height: 1;
+    }
+
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: var(--transition-smooth);
+      text-decoration: none;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border-color: #0891b2;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #0891b2);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border-color: #059669;
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, #047857, #059669);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.6rem;
+      font-size: 0.72rem;
+    }
+
+    /* Cards & Panels */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+      backdrop-filter: blur(12px);
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Input & Select */
+    .input-field, .select-field {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.75rem;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .input-field:focus, .select-field:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    /* Search Bar */
+    .search-bar-wrap {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .search-input {
+      flex: 1;
+      font-size: 0.95rem;
+      padding: 0.65rem 1rem;
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+
+    .quick-examples {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .chip:hover {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--accent-cyan);
+      color: #ffffff;
+    }
+
+    /* Profile Cards Grid */
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .profile-card {
+      background: rgba(6, 9, 15, 0.5);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 0.85rem 0.85rem 0.75rem 0.85rem;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      position: relative;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 105px;
+    }
+
+    .profile-card:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .profile-card.active {
+      background: rgba(6, 182, 212, 0.12);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+    }
+
+    .profile-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .profile-title {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.35rem;
+      line-height: 1.3;
+      padding-right: 70px;
+    }
+
+    .profile-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: var(--transition-smooth);
+    }
+
+    .profile-card.active .profile-badge {
+      background: rgba(6, 182, 212, 0.22);
+      border-color: rgba(6, 182, 212, 0.5);
+      color: var(--accent-cyan);
+      font-weight: 600;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+    }
+
+    .profile-desc {
+      margin-top: auto;
+      font-size: 0.71rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+      padding-top: 0.4rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Engine Checkboxes Grid */
+    .engines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .engine-chip {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.4rem 0.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      user-select: none;
+      transition: var(--transition-smooth);
+      font-size: 0.78rem;
+      position: relative;
+    }
+
+    .engine-chip:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--border-active);
+    }
+
+    .engine-chip.checked {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #ffffff;
+    }
+
+    .engine-chip input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--accent-emerald);
+      margin: 0;
+    }
+
+    .engine-tag {
+      font-size: 0.62rem;
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    .engine-tag.web { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+    .engine-tag.osint { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; }
+    .engine-tag.infra { background: rgba(6, 182, 212, 0.15); color: #67e8f9; }
+    .engine-tag.code { background: rgba(234, 179, 8, 0.15); color: #fde047; }
+    .engine-tag.archive { background: rgba(100, 116, 139, 0.25); color: #cbd5e1; }
+    .engine-tag.pentest { background: rgba(244, 63, 94, 0.15); color: #fda4af; }
+
+    .engine-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: auto;
+      opacity: 0.45;
+      transition: opacity 0.15s ease;
+    }
+
+    .engine-chip:hover .engine-actions { opacity: 1; }
+
+    .engine-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 2px 3px;
+      font-size: 0.68rem;
+      border-radius: 3px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .engine-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      transform: scale(1.1);
+    }
+
+    .engine-btn.delete:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+    }
+
+    /* CLI Preview Box */
+    .cli-box {
+      background: #04060a;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      overflow-x: auto;
+    }
+
+    /* Link Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .link-card {
+      background: rgba(6, 9, 15, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      transition: var(--transition-smooth);
+    }
+
+    .link-card:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .link-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .link-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .link-url {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.3rem 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      padding: 1rem;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #0b101b;
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+      animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-body {
+      padding: 1.25rem;
+      max-height: 75vh;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .form-group { margin-bottom: 0.85rem; }
+    .form-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.3rem;
+      font-weight: 500;
+    }
+    .form-hint {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+      display: block;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background: #0f172a;
+      border: 1px solid var(--border-active);
+      color: #ffffff;
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: slideIn 0.2s ease;
+    }
+
+    .toast.success { border-color: var(--accent-emerald); }
+    .toast.error { border-color: var(--accent-rose); }
+    .toast.info { border-color: var(--accent-cyan); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Top Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">🕵️‍♂️</div>
+        <div class="brand-text">
+          <h1>Multi-Search — OSINT Recon Hub</h1>
+          <p>Central de Reconhecimento, Configuração de Comandos & Abertura Nativa no Host</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openAddEngineModal()">
+          ➕ Nova Plataforma
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="confirmResetCatalog()">
+          ↺ Restaurar Padrões
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Input & Quick Pivots -->
+    <div class="panel">
+      <div class="search-bar-wrap">
+        <input type="text" class="input-field search-input" id="query-input" placeholder="Digite o alvo OSINT: IP, Domínio, CVE, Carteira Crypto, Hash, Usuário, Handle ou String..." oninput="handleQueryChange()">
+        <button type="button" class="btn btn-primary" id="btn-launch-top" onclick="triggerLaunch()" style="min-width: 170px;">
+          🚀 Disparar no Host
+        </button>
+      </div>
+      <div class="quick-examples">
+        <span style="font-weight: 600;">EXEMPLOS:</span>
+        <span class="chip" onclick="setQueryExample('CVE-2024-3094', 'pentest')">🛡️ CVE-2024-3094</span>
+        <span class="chip" onclick="setQueryExample('1.1.1.1', 'infra')">🌐 IP 1.1.1.1</span>
+        <span class="chip" onclick="setQueryExample('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'osint')">₿ Carteira BTC</span>
+        <span class="chip" onclick="setQueryExample('AWS_SECRET_ACCESS_KEY', 'code')">🔑 Secret Leak</span>
+        <span class="chip" onclick="setQueryExample('ransomware leak', 'web')">📰 Ransomware Leak</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Profile Selection -->
+    <div class="section-title">
+      <span>1. Escolha o Perfil de Reconhecimento (-c / --category)</span>
+      <span style="font-size: 0.72rem; color: var(--text-muted);" id="active-profile-label">Perfil Ativo: <strong>OSINT & Pessoas</strong></span>
+    </div>
+    <div class="profiles-grid" id="profiles-container">
+      <!-- Generated dynamically -->
+    </div>
+
+    <!-- Section 2: Engines Selection & Management -->
+    <div class="panel">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+          <span>2. Plataformas Selecionadas</span>
+          <span class="chip" id="selected-count-badge" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); font-weight: 600;">8 de 24 ativas</span>
+        </div>
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-success btn-sm" onclick="openAddEngineModal()">
+            ➕ Nova Plataforma
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllEngines()">Marcar Todas</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearAllEngines()">Desmarcar Todas</button>
+        </div>
+      </div>
+      <div class="engines-grid" id="engines-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Section 3: Browser & Host CLI Parameters -->
+    <div class="panel">
+      <div class="section-title">
+        <span>3. Parâmetros de Disparo no Host & Comando CLI Equivalente</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div>
+          <label for="browser-select" class="form-label">🌐 Navegador Alvo (Host / Flatpak):</label>
+          <select class="select-field" id="browser-select" onchange="updateCliCommand()">
+            <!-- Populated from detected browsers -->
+          </select>
+        </div>
+        <div>
+          <label for="delay-select" class="form-label">⏱️ Intervalo entre Abas (Delay):</label>
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <select class="select-field" id="delay-select" onchange="handleDelayChange()" style="flex: 1;">
+              <option value="300">0.3s (Rápido)</option>
+              <option value="600" selected>0.6s (Balanceado)</option>
+              <option value="1200">1.2s (Protegido)</option>
+              <option value="2000">2.0s (Maior Diminuição de Bloqueios)</option>
+              <option value="3000">3.0s (Evasão Alta / 3s)</option>
+              <option value="5000">5.0s (Evasão Máxima / 5s)</option>
+              <option value="custom">✏️ Personalizado...</option>
+            </select>
+            <div id="delay-custom-box" style="display: none; align-items: center; gap: 3px;">
+              <input type="number" id="delay-custom-input" class="input-field" min="0.1" max="60" step="0.5" value="3.0" style="padding: 0.35rem 0.5rem; font-size: 0.78rem; width: 65px;" oninput="updateCliCommand()">
+              <span style="font-size: 0.7rem; color: var(--text-dim);">s</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <label style="font-size: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0;">
+              <input type="checkbox" id="chk-private" checked onchange="updateCliCommand()"> 🕵️ Modo Privado / Incógnito (-p)
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openInfoModal('private')" style="padding: 1px 6px; font-size: 0.65rem; border-radius: 9999px;">ℹ️ Info</button>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <label style="font-size: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0;">
+              <input type="checkbox" id="chk-human" checked onchange="updateCliCommand()"> 👤 Simulação Humana com Jitter (-H)
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openInfoModal('human')" style="padding: 1px 6px; font-size: 0.65rem; border-radius: 9999px;">ℹ️ Info</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLI Command Preview Box -->
+      <div>
+        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px;">💻 Comando CLI Equivalente para Terminal Host (msearch):</div>
+        <div class="cli-box">
+          <span id="cli-command-text">msearch -c osint "termo"</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copyCliCommand()">
+            📋 Copiar Comando
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Generated Links -->
+    <div class="panel">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+          <span>4. Plataformas e Links Gerados</span>
+          <button type="button" class="btn btn-primary btn-sm" onclick="triggerLaunch()">
+            🚀 Disparar no Host
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copyAllUrls()">
+            📋 Copiar Todos os URLs
+          </button>
+        </div>
+        <div id="launch-status" style="font-size: 0.75rem; color: var(--accent-cyan);"></div>
+      </div>
+      <div class="cards-grid" id="cards-container">
+        <!-- Generated Cards -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL: ADD / EDIT ENGINE -->
+  <div class="modal-overlay" id="modal-engine">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-engine-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">➕ Cadastrar Nova Plataforma</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeEngineModal()">✕</button>
+      </div>
+      <form id="form-engine" onsubmit="handleSaveEngine(event)">
+        <input type="hidden" id="form-original-key" value="">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome de Exibição <span style="color: var(--accent-rose);">*</span></label>
+            <input type="text" class="input-field" id="form-name" required placeholder="Ex: Censys, AlienVault OTX, AbuseIPDB, FOFA" oninput="handleNameInput()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Identificador Único (Key) <span style="color: var(--accent-rose);">*</span></label>
+            <input type="text" class="input-field" id="form-key" required placeholder="Ex: censys, otx, abuseipdb" style="font-family: var(--font-mono); font-size: 0.8rem;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modelo de URL (com {q}) <span style="color: var(--accent-rose);">*</span></label>
+            <input type="text" class="input-field" id="form-url" required placeholder="Ex: https://search.censys.io/hosts?q={q}" style="font-family: var(--font-mono); font-size: 0.8rem;">
+            <span class="form-hint">O termo digitado substituirá <strong>{q}</strong> na URL.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tag de Categoria Visual</label>
+            <select class="select-field" id="form-tag">
+              <option value="infra">infra (Infraestrutura / Redes / Threat Intel)</option>
+              <option value="osint">osint (OSINT Pessoas / Leaks / Entidades)</option>
+              <option value="pentest">pentest (Pentest / Exploits / CVEs)</option>
+              <option value="code">code (Código / Secrets / Repositórios)</option>
+              <option value="archive">archive (Arquivos / Caches Históricos)</option>
+              <option value="web">web (Web Geral / Motores Independentes)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vincular aos Perfis de Reconhecimento:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; background: rgba(0,0,0,0.25); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-osint" value="osint"> 🕵️‍♂️ OSINT & Pessoas
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-infra" value="infra"> 📡 Infra & Threat Intel
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-pentest" value="pentest"> 💣 Pentest & CVEs
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-code" value="code"> 💻 Código & Secrets
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-archive" value="archive"> 🏛️ Arquivos & Caches
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                <input type="checkbox" id="cat-web" value="web"> 🌐 Web Geral
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeEngineModal()">Cancelar</button>
+          <button type="submit" class="btn btn-success btn-sm">Salvar Plataforma</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: INFO MODAL -->
+  <div class="modal-overlay" id="modal-info">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-info-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">ℹ️ Detalhes</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeInfoModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-info-body" style="font-size: 0.82rem; line-height: 1.5; color: var(--text-main);"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" onclick="closeInfoModal()">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Frontend Logic -->
+  <script>
+    let APP_STATE = {
+      config: null,
+      activeCategory: 'osint',
+      selectedEngines: new Set(),
+      generatedLinks: []
+    };
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          APP_STATE.config = await res.json();
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar /api/config:', err);
+      }
+
+      if (!APP_STATE.config) {
+        APP_STATE.config = {
+          engines: [],
+          categories: {},
+          installed_browsers: []
+        };
+      }
+
+      renderBrowsers();
+      renderProfiles();
+      selectCategory(APP_STATE.activeCategory);
+      handleQueryChange();
+    }
+
+    function renderBrowsers() {
+      const select = document.getElementById('browser-select');
+      if (!select) return;
+      const browsers = APP_STATE.config.installed_browsers || [];
+      if (browsers.length === 0) {
+        select.innerHTML = `<option value="librewolf">🐺 LibreWolf</option><option value="firefox">🦊 Firefox</option><option value="brave">🦁 Brave</option><option value="chrome">🌐 Google Chrome</option>`;
+        return;
+      }
+      let html = '';
+      browsers.forEach(b => {
+        const def = b.is_default ? ' (Padrão)' : '';
+        html += `<option value="${escapeHtml(b.alias)}" ${b.is_default ? 'selected' : ''}>🌐 ${escapeHtml(b.name)} [${b.btype}]${def}</option>`;
+      });
+      select.innerHTML = html;
+    }
+
+    function renderProfiles() {
+      const container = document.getElementById('profiles-container');
+      if (!container) return;
+      const cats = APP_STATE.config.categories || {};
+      let html = '';
+      const ordered = ['osint', 'infra', 'pentest', 'code', 'archive', 'web', 'all'];
+
+      ordered.forEach(catKey => {
+        const c = cats[catKey];
+        if (!c) return;
+        const isActive = APP_STATE.activeCategory === catKey ? 'active' : '';
+        const count = c.engines ? c.engines.length : 0;
+        html += `
+          <div class="profile-card ${isActive}" onclick="selectCategory('${catKey}')" id="card-cat-${catKey}">
+            <div class="profile-header">
+              <div class="profile-title">
+                <span>${c.icon || '🔍'}</span> ${escapeHtml(c.title)}
+              </div>
+              <span class="profile-badge">${count} engines</span>
+            </div>
+            <div class="profile-desc">${escapeHtml(c.description)}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function selectCategory(catKey) {
+      APP_STATE.activeCategory = catKey;
+      document.querySelectorAll('.profile-card').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(`card-cat-${catKey}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      const catInfo = (APP_STATE.config.categories || {})[catKey];
+      const activeLabel = document.getElementById('active-profile-label');
+      if (activeLabel && catInfo) {
+        activeLabel.innerHTML = `Perfil Ativo: <strong>${catInfo.icon || ''} ${escapeHtml(catInfo.title)}</strong>`;
+      }
+
+      APP_STATE.selectedEngines = new Set(catInfo ? catInfo.engines : []);
+      renderEngines();
+      updateCliCommand();
+      renderLinks();
+    }
+
+    function renderEngines() {
+      const container = document.getElementById('engines-container');
+      if (!container) return;
+      const allEngines = APP_STATE.config.engines || [];
+
+      let html = '';
+      allEngines.forEach(eng => {
+        const isChecked = APP_STATE.selectedEngines.has(eng.key);
+        html += `
+          <div class="engine-chip ${isChecked ? 'checked' : ''}" id="chip-eng-${eng.key}">
+            <input type="checkbox" id="chk-eng-${eng.key}" value="${eng.key}" ${isChecked ? 'checked' : ''} onchange="toggleEngine('${eng.key}', this.checked)">
+            <label for="chk-eng-${eng.key}" style="flex: 1; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0;">
+              <span>${escapeHtml(eng.name)}</span>
+            </label>
+            <span class="engine-tag ${eng.category_tag}">${eng.category_tag}</span>
+            <div class="engine-actions">
+              <button type="button" class="engine-btn" onclick="openEditEngineModal('${eng.key}', event)" title="Editar plataforma">✏️</button>
+              <button type="button" class="engine-btn delete" onclick="confirmDeleteEngine('${eng.key}', event)" title="Remover plataforma">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+      updateSelectedBadge();
+    }
+
+    function toggleEngine(key, isChecked) {
+      if (isChecked) APP_STATE.selectedEngines.add(key);
+      else APP_STATE.selectedEngines.delete(key);
+
+      const chip = document.getElementById(`chip-eng-${key}`);
+      if (chip) {
+        if (isChecked) chip.classList.add('checked');
+        else chip.classList.remove('checked');
+      }
+      updateSelectedBadge();
+      updateCliCommand();
+      renderLinks();
+    }
+
+    function selectAllEngines() {
+      (APP_STATE.config.engines || []).forEach(e => APP_STATE.selectedEngines.add(e.key));
+      renderEngines();
+      updateCliCommand();
+      renderLinks();
+    }
+
+    function clearAllEngines() {
+      APP_STATE.selectedEngines.clear();
+      renderEngines();
+      updateCliCommand();
+      renderLinks();
+    }
+
+    function updateSelectedBadge() {
+      const badge = document.getElementById('selected-count-badge');
+      if (badge) {
+        const total = (APP_STATE.config.engines || []).length;
+        badge.textContent = `${APP_STATE.selectedEngines.size} de ${total} ativas`;
+      }
+    }
+
+    function getDelayMs() {
+      const sel = document.getElementById('delay-select')?.value;
+      if (sel === 'custom') {
+        const sec = parseFloat(document.getElementById('delay-custom-input')?.value || '3.0');
+        return Math.round((isNaN(sec) || sec < 0.1 ? 3.0 : sec) * 1000);
+      }
+      return parseInt(sel || '600', 10);
+    }
+
+    function handleDelayChange() {
+      const sel = document.getElementById('delay-select')?.value;
+      const box = document.getElementById('delay-custom-box');
+      if (box) box.style.display = sel === 'custom' ? 'flex' : 'none';
+      updateCliCommand();
+    }
+
+    function updateCliCommand() {
+      const query = (document.getElementById('query-input')?.value || '').trim() || 'termo_alvo';
+      const browser = document.getElementById('browser-select')?.value || 'librewolf';
+      const delayMs = getDelayMs();
+      const isPrivate = document.getElementById('chk-private')?.checked;
+      const isHuman = document.getElementById('chk-human')?.checked;
+
+      let cmd = 'msearch';
+      if (APP_STATE.activeCategory && APP_STATE.activeCategory !== 'web') {
+        cmd += ` -c ${APP_STATE.activeCategory}`;
+      }
+      if (browser && browser !== 'librewolf') {
+        cmd += ` -b ${browser}`;
+      }
+      if (delayMs !== 600) {
+        const sec = (delayMs / 1000).toFixed(1).replace(/\.0$/, '');
+        cmd += ` -d ${sec}`;
+      }
+      if (isPrivate) cmd += ' -p';
+      if (isHuman) cmd += ' -H';
+      cmd += ` "${query}"`;
+
+      const cliEl = document.getElementById('cli-command-text');
+      if (cliEl) cliEl.textContent = cmd;
+    }
+
+    function handleQueryChange() {
+      updateCliCommand();
+      renderLinks();
+    }
+
+    function setQueryExample(query, category) {
+      const input = document.getElementById('query-input');
+      if (input) input.value = query;
+      if (category) selectCategory(category);
+      handleQueryChange();
+    }
+
+    function renderLinks() {
+      const container = document.getElementById('cards-container');
+      if (!container) return;
+      const query = (document.getElementById('query-input')?.value || '').trim();
+      const encoded = encodeURIComponent(query || '1.1.1.1');
+      const allEngines = APP_STATE.config.engines || [];
+      const selected = allEngines.filter(e => APP_STATE.selectedEngines.has(e.key));
+
+      APP_STATE.generatedLinks = selected.map(e => ({
+        name: e.name,
+        key: e.key,
+        url: e.url_template.replace('{q}', encoded),
+        tag: e.category_tag
+      }));
+
+      if (APP_STATE.generatedLinks.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 3rem;">
+            Nenhuma plataforma selecionada. Marque plataformas acima para gerar links.
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      APP_STATE.generatedLinks.forEach((item, idx) => {
+        html += `
+          <div class="link-card" id="card-link-${idx}">
+            <div class="link-header">
+              <div class="link-title"><span>🔎</span> ${escapeHtml(item.name)}</div>
+              <span class="engine-tag ${item.tag}">${item.tag}</span>
+            </div>
+            <div class="link-url" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="copyText('${escapeHtml(item.url)}')">📋 Copiar</button>
+              <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">🚀 Abrir Aba ↗</a>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    async function triggerLaunch() {
+      const query = (document.getElementById('query-input')?.value || '').trim();
+      if (!query) {
+        showToast('Digite um termo de pesquisa antes de disparar.', 'info');
+        document.getElementById('query-input')?.focus();
+        return;
+      }
+
+      const engines = Array.from(APP_STATE.selectedEngines);
+      if (engines.length === 0) {
+        showToast('Nenhuma plataforma selecionada para disparo.', 'error');
+        return;
+      }
+
+      const payload = {
+        query: query,
+        category: APP_STATE.activeCategory,
+        browser: document.getElementById('browser-select')?.value || '',
+        engines: engines,
+        private: document.getElementById('chk-private')?.checked || false,
+        human: document.getElementById('chk-human')?.checked || false,
+        delay: getDelayMs() / 1000
+      };
+
+      const statusEl = document.getElementById('launch-status');
+      if (statusEl) statusEl.textContent = `🚀 Disparando ${engines.length} abas no navegador host...`;
+      showToast(`🚀 Disparando ${engines.length} abas no host (Modo: ${payload.private ? 'Privado' : 'Padrão'})...`, 'info');
+
+      try {
+        const res = await fetch('/api/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`✨ ${data.message || 'Buscas iniciadas com sucesso no host!'}`, 'success');
+          if (statusEl) statusEl.textContent = '✅ Disparo concluído com sucesso no SO!';
+        } else {
+          showToast('Erro ao disparar processo no host.', 'error');
+        }
+      } catch (err) {
+        showToast('Falha na comunicação com o servidor local.', 'error');
+      }
+    }
+
+    function copyCliCommand() {
+      const cmd = document.getElementById('cli-command-text')?.textContent || '';
+      copyText(cmd);
+    }
+
+    function copyAllUrls() {
+      if (!APP_STATE.generatedLinks || APP_STATE.generatedLinks.length === 0) {
+        showToast('Nenhum link gerado para copiar.', 'info');
+        return;
+      }
+      const urls = APP_STATE.generatedLinks.map(l => l.url).join('\n');
+      copyText(urls);
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('Copiado para a área de transferência!', 'success'));
+      } else {
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast('Copiado para a área de transferência!', 'success');
+      }
+    }
+
+    /* Modal Operations */
+    function openAddEngineModal() {
+      document.getElementById('modal-engine-title').textContent = '➕ Cadastrar Nova Plataforma';
+      document.getElementById('form-original-key').value = '';
+      document.getElementById('form-name').value = '';
+      document.getElementById('form-key').value = '';
+      document.getElementById('form-url').value = '';
+      document.getElementById('form-tag').value = (APP_STATE.activeCategory !== 'all') ? APP_STATE.activeCategory : 'infra';
+
+      ['osint', 'infra', 'pentest', 'code', 'archive', 'web'].forEach(cat => {
+        const chk = document.getElementById(`cat-${cat}`);
+        if (chk) chk.checked = (cat === APP_STATE.activeCategory);
+      });
+
+      document.getElementById('modal-engine').classList.add('active');
+      setTimeout(() => document.getElementById('form-name')?.focus(), 50);
+    }
+
+    function openEditEngineModal(key, event) {
+      if (event) { event.preventDefault(); event.stopPropagation(); }
+      const eng = (APP_STATE.config.engines || []).find(e => e.key === key);
+      if (!eng) return;
+
+      document.getElementById('modal-engine-title').textContent = `✏️ Editar Plataforma (${eng.name})`;
+      document.getElementById('form-original-key').value = eng.key;
+      document.getElementById('form-name').value = eng.name;
+      document.getElementById('form-key').value = eng.key;
+      document.getElementById('form-url').value = eng.url_template;
+      document.getElementById('form-tag').value = eng.category_tag || 'infra';
+
+      const cats = APP_STATE.config.categories || {};
+      ['osint', 'infra', 'pentest', 'code', 'archive', 'web'].forEach(cat => {
+        const chk = document.getElementById(`cat-${cat}`);
+        if (chk) chk.checked = (cats[cat]?.engines || []).includes(eng.key);
+      });
+
+      document.getElementById('modal-engine').classList.add('active');
+    }
+
+    function closeEngineModal() {
+      document.getElementById('modal-engine').classList.remove('active');
+    }
+
+    function handleNameInput() {
+      const orig = document.getElementById('form-original-key').value;
+      if (!orig) {
+        const nameVal = document.getElementById('form-name').value;
+        const keyInput = document.getElementById('form-key');
+        if (keyInput) keyInput.value = nameVal.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      }
+    }
+
+    async function handleSaveEngine(event) {
+      if (event) event.preventDefault();
+      const origKey = document.getElementById('form-original-key').value.trim();
+      const name = document.getElementById('form-name').value.trim();
+      let key = document.getElementById('form-key').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      let url = document.getElementById('form-url').value.trim();
+      const tag = document.getElementById('form-tag').value;
+
+      if (!name || !key || !url) {
+        showToast('Preencha os campos obrigatórios.', 'error');
+        return;
+      }
+      if (!url.includes('{q}')) {
+        url += (url.includes('?') ? '&q={q}' : '?q={q}');
+      }
+
+      const cfg = APP_STATE.config;
+      if (origKey) {
+        const idx = cfg.engines.findIndex(e => e.key === origKey);
+        if (idx !== -1) cfg.engines[idx] = { name, key, url_template: url, category_tag: tag };
+        if (origKey !== key && APP_STATE.selectedEngines.has(origKey)) {
+          APP_STATE.selectedEngines.delete(origKey);
+          APP_STATE.selectedEngines.add(key);
+        }
+      } else {
+        const exists = cfg.engines.some(e => e.key === key);
+        if (exists) key = `${key}-${Date.now().toString().slice(-4)}`;
+        cfg.engines.push({ name, key, url_template: url, category_tag: tag });
+        APP_STATE.selectedEngines.add(key);
+      }
+
+      ['osint', 'infra', 'pentest', 'code', 'archive', 'web'].forEach(catKey => {
+        if (!cfg.categories[catKey]) return;
+        const chk = document.getElementById(`cat-${catKey}`);
+        let engList = cfg.categories[catKey].engines || [];
+        if (origKey && origKey !== key) engList = engList.filter(k => k !== origKey);
+        if (chk && chk.checked) {
+          if (!engList.includes(key)) engList.push(key);
+        } else {
+          engList = engList.filter(k => k !== key);
+        }
+        cfg.categories[catKey].engines = engList;
+      });
+
+      if (cfg.categories.all) {
+        cfg.categories.all.engines = cfg.engines.map(e => e.key);
+      }
+
+      await saveConfigToServer();
+      closeEngineModal();
+      renderProfiles();
+      renderEngines();
+      renderLinks();
+      showToast(`Plataforma "${name}" salva com sucesso!`, 'success');
+    }
+
+    async function confirmDeleteEngine(key, event) {
+      if (event) { event.preventDefault(); event.stopPropagation(); }
+      const eng = (APP_STATE.config.engines || []).find(e => e.key === key);
+      const name = eng ? eng.name : key;
+
+      if (!confirm(`Deseja remover a plataforma "${name}" (${key}) do catálogo?`)) return;
+
+      APP_STATE.config.engines = (APP_STATE.config.engines || []).filter(e => e.key !== key);
+      Object.values(APP_STATE.config.categories || {}).forEach(cat => {
+        if (cat.engines) cat.engines = cat.engines.filter(k => k !== key);
+      });
+      APP_STATE.selectedEngines.delete(key);
+
+      await saveConfigToServer();
+      renderProfiles();
+      renderEngines();
+      renderLinks();
+      showToast(`Plataforma "${name}" removida.`, 'info');
+    }
+
+    async function confirmResetCatalog() {
+      if (!confirm('Deseja restaurar as 24 plataformas e categorias originais de fábrica?')) return;
+      try {
+        const res = await fetch('/api/reset', { method: 'POST' });
+        if (res.ok) {
+          APP_STATE.config = await res.json();
+          selectCategory(APP_STATE.activeCategory);
+          showToast('Catálogo padrão restaurado com sucesso!', 'success');
+        }
+      } catch (err) {
+        showToast('Erro ao restaurar configurações padrão.', 'error');
+      }
+    }
+
+    async function saveConfigToServer() {
+      try {
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(APP_STATE.config)
+        });
+      } catch (err) {
+        console.error('Erro ao salvar config no servidor:', err);
+      }
+    }
+
+    function openInfoModal(type) {
+      const title = document.getElementById('modal-info-title');
+      const body = document.getElementById('modal-info-body');
+      if (!title || !body) return;
+
+      if (type === 'private') {
+        title.innerHTML = '🕵️ Modo Privado / Incógnito (<code>-p</code>)';
+        body.innerHTML = `
+          <div style="margin-bottom: 0.75rem;">Abre todas as plataformas em uma <strong>janela anônima / privativa nativa</strong> no navegador host.</div>
+          <div style="background: rgba(6,182,212,0.08); border-left: 3px solid var(--accent-cyan); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+            <strong>Vantagens OSINT:</strong>
+            <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+              <li><strong>Zero rastro:</strong> Nenhum histórico, cookies ou cache salvos na sua máquina ao fechar.</li>
+              <li><strong>Isolamento de sessões:</strong> Não expõe suas contas pessoais (Google, Shodan, VirusTotal).</li>
+              <li><strong>Sem personalização:</strong> Resultados sem viés ou filtro de buscas anteriores.</li>
+            </ul>
+          </div>
+        `;
+      } else if (type === 'human') {
+        title.innerHTML = '👤 Simulação Humana com Jitter (<code>-H</code>)';
+        body.innerHTML = `
+          <div style="margin-bottom: 0.75rem;">Aplica <strong>aleatoriedade nos intervalos (jitter)</strong> e embaralha a sequência de abertura dos motores.</div>
+          <div style="background: rgba(168,85,247,0.08); border-left: 3px solid var(--accent-purple); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+            <strong>Proteção Anti-Bloqueio:</strong>
+            <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+              <li><strong>Evasão de Anti-Bot / WAF:</strong> Evita acionar proteções Cloudflare e Akamai que barram dezenas de conexões instantâneas no mesmo milissegundo.</li>
+              <li><strong>Intervalos Orgânicos:</strong> Adiciona micro-variações no delay entre cada aba.</li>
+              <li><strong>Ordem Embaralhada:</strong> Evita assinaturas sequenciais previsíveis.</li>
+            </ul>
+          </div>
+        `;
+      }
+      document.getElementById('modal-info').classList.add('active');
+    }
+
+    function closeInfoModal() {
+      document.getElementById('modal-info').classList.remove('active');
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+      toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(msg)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 250);
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadConfig();
+      document.getElementById('modal-engine')?.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-engine') closeEngineModal();
+      });
+      document.getElementById('modal-info')?.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-info') closeInfoModal();
+      });
+    });
+  </script>
+</body>
+</html>

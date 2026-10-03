@@ -16,9 +16,13 @@ During OSINT investigations, pivoting on an indicator (a handle, domain, email, 
 
 ## ⚡ Features
 
+- **Interactive Web UI & Command Center (`msearch` / `msearch --ui`)**:
+  - Running `msearch` without arguments launches an integrated, zero-dependency web interface on `http://localhost:7890`.
+  - Visual selection of profiles, checkboxes for engines, live CLI command generation, and direct OS-level execution.
+  - **Plataform CRUD**: Add, edit, remove platforms, and assign them to profiles with persistence in `~/.config/multi_search/config.json`.
 - **Built for OSINT & Security Research**: Dispatches queries across 24 specialized search engines, vulnerability databases, and intelligence sources.
 - **Dedicated Intelligence Profiles (`-c` / `--category`)**:
-  - `web` **(DEFAULT)**: Clean multi-index web search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
+  - `web`: Clean multi-index web search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
   - `osint`: Deep investigations, person/entity footprinting, darkweb/paste dumps, reverse search, and archives (Google, Brave, Yandex, IntelX, Wayback Machine, Archive.today, URLScan, Reddit).
   - `infra`: Network infrastructure, open ports, TLS/SSL certificates, and threat intel (Shodan, URLScan, VirusTotal, IntelX).
   - `code`: Public codebases, leaked secrets, exposed tokens, and author footprinting (GitHub Code, Grep.app, Google).
@@ -59,15 +63,22 @@ msearch --list-browsers
 ---
 
 ## 🚀 Usage & Examples
+ 
+### 1. Interactive Web UI & Command Center
+Simply run `msearch` (or `msearch --ui`):
+```bash
+msearch
+```
+This starts the local web server and opens `http://localhost:7890` in your browser. You can visually select profiles, customize platforms, generate CLI commands, and dispatch native browser searches with one click.
 
-### 1. Default Web Search (`web` profile)
-If you provide only the search query without any flags, `msearch` automatically defaults to the **`web` profile**:
+### 2. Default Direct CLI Search (`web` profile)
+If you provide a search query directly in the terminal, `msearch` executes the search immediately:
 ```bash
 # Automatically searches: Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity
 msearch python web scraping
 ```
 
-### 2. OSINT & Entity Investigations (`-c osint`)
+### 3. OSINT & Entity Investigations (`-c osint`)
 Investigate a username, person, or organization across general engines, Intelligence X leaks, archives, and Reddit:
 ```bash
 msearch -p -c osint "target username"

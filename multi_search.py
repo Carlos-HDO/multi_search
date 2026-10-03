@@ -1,58 +1,113 @@
 #!/usr/bin/env python3
 """
-Multi-Search CLI Tool
+Multi-Search CLI & Web Hub Tool
 Dispatches simultaneous searches across multiple web search engines in browser tabs.
-Optimized for General Web Research and OSINT (Open Source Intelligence).
+Optimized for General Web Research, Threat Intel, and OSINT (Open Source Intelligence).
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import random
 import shlex
 import shutil
 import subprocess
 import sys
+import threading
 import time
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from urllib.parse import quote_plus
 
-ENGINES: list[tuple[str, str, str]] = [
+CONFIG_DIR = Path.home() / ".config" / "multi_search"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+UI_DIR = Path(__file__).resolve().parent / "ui"
+
+DEFAULT_ENGINES: list[dict[str, str]] = [
     # General & Independent Web Indexes
-    ("Google",          "google",        "https://www.google.com/search?q={q}"),
-    ("Brave",           "brave",         "https://search.brave.com/search?q={q}"),
-    ("DuckDuckGo",      "duckduckgo",    "https://duckduckgo.com/?q={q}"),
-    ("Startpage",       "startpage",     "https://www.startpage.com/sp/search?query={q}"),
-    ("Yandex",          "yandex",        "https://yandex.com/search/?text={q}"),
-    ("Bing",            "bing",          "https://www.bing.com/search?q={q}"),
-    ("Perplexity",      "perplexity",    "https://www.perplexity.ai/search?q={q}"),
+    {"name": "Google",          "key": "google",        "url_template": "https://www.google.com/search?q={q}", "category_tag": "web"},
+    {"name": "Brave",           "key": "brave",         "url_template": "https://search.brave.com/search?q={q}", "category_tag": "web"},
+    {"name": "DuckDuckGo",      "key": "duckduckgo",    "url_template": "https://duckduckgo.com/?q={q}", "category_tag": "web"},
+    {"name": "Startpage",       "key": "startpage",     "url_template": "https://www.startpage.com/sp/search?query={q}", "category_tag": "web"},
+    {"name": "Yandex",          "key": "yandex",        "url_template": "https://yandex.com/search/?text={q}", "category_tag": "web"},
+    {"name": "Bing",            "key": "bing",          "url_template": "https://www.bing.com/search?q={q}", "category_tag": "web"},
+    {"name": "Perplexity",      "key": "perplexity",    "url_template": "https://www.perplexity.ai/search?q={q}", "category_tag": "web"},
 
     # OSINT: Archives & Historical Caches
-    ("Wayback Machine", "wayback",       "https://web.archive.org/web/*/{q}"),
-    ("Archive.today",   "archive-today", "https://archive.ph/{q}"),
+    {"name": "Wayback Machine", "key": "wayback",       "url_template": "https://web.archive.org/web/*/{q}", "category_tag": "archive"},
+    {"name": "Archive.today",   "key": "archive-today", "url_template": "https://archive.ph/{q}", "category_tag": "archive"},
 
     # OSINT: Leaks, Pastes & Public Intelligence
-    ("Intelligence X",  "intelx",        "https://intelx.io/?s={q}"),
-    ("Reddit",          "reddit",        "https://www.reddit.com/search/?q={q}"),
+    {"name": "Intelligence X",  "key": "intelx",        "url_template": "https://intelx.io/?s={q}", "category_tag": "osint"},
+    {"name": "Reddit",          "key": "reddit",        "url_template": "https://www.reddit.com/search/?q={q}", "category_tag": "osint"},
 
     # OSINT: Code, Secrets & Developer Footprint
-    ("GitHub Code",     "github",        "https://github.com/search?q={q}&type=code"),
-    ("Grep.app",        "grepapp",       "https://grep.app/search?q={q}"),
+    {"name": "GitHub Code",     "key": "github",        "url_template": "https://github.com/search?q={q}&type=code", "category_tag": "code"},
+    {"name": "Grep.app",        "key": "grepapp",       "url_template": "https://grep.app/search?q={q}", "category_tag": "code"},
 
     # OSINT: Infrastructure, Network & Threat Intel
-    ("URLScan",         "urlscan",       "https://urlscan.io/search/#{q}"),
-    ("Shodan",          "shodan",        "https://www.shodan.io/search?query={q}"),
-    ("VirusTotal",      "virustotal",    "https://www.virustotal.com/gui/search/{q}"),
+    {"name": "URLScan",         "key": "urlscan",       "url_template": "https://urlscan.io/search/#{q}", "category_tag": "infra"},
+    {"name": "Shodan",          "key": "shodan",        "url_template": "https://www.shodan.io/search?query={q}", "category_tag": "infra"},
+    {"name": "VirusTotal",      "key": "virustotal",    "url_template": "https://www.virustotal.com/gui/search/{q}", "category_tag": "infra"},
 
     # Pentest & Vulnerability Research: Exploits, CVEs & PoCs
-    ("Exploit-DB",      "exploitdb",     "https://www.exploit-db.com/search?q={q}"),
-    ("Sploitus",        "sploitus",      "https://sploitus.com/?query={q}"),
-    ("Packet Storm",    "packetstorm",   "https://packetstormsecurity.com/search/?q={q}"),
-    ("Rapid7 (MSF)",    "rapid7",        "https://www.rapid7.com/db/?q={q}"),
-    ("SecLists",        "seclists",      "https://seclists.org/search/?q={q}"),
-    ("GitHub PoC",      "githubpoc",     "https://github.com/search?q={q}+poc+OR+exploit&type=repositories"),
-    ("NVD (NIST)",      "nvd",           "https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query={q}&search_type=all"),
-    ("Vulners",         "vulners",       "https://vulners.com/search?query={q}"),
+    {"name": "Exploit-DB",      "key": "exploitdb",     "url_template": "https://www.exploit-db.com/search?q={q}", "category_tag": "pentest"},
+    {"name": "Sploitus",        "key": "sploitus",      "url_template": "https://sploitus.com/?query={q}", "category_tag": "pentest"},
+    {"name": "Packet Storm",    "key": "packetstorm",   "url_template": "https://packetstormsecurity.com/search/?q={q}", "category_tag": "pentest"},
+    {"name": "Rapid7 (MSF)",    "key": "rapid7",        "url_template": "https://www.rapid7.com/db/?q={q}", "category_tag": "pentest"},
+    {"name": "SecLists",        "key": "seclists",      "url_template": "https://seclists.org/search/?q={q}", "category_tag": "pentest"},
+    {"name": "GitHub PoC",      "key": "githubpoc",     "url_template": "https://github.com/search?q={q}+poc+OR+exploit&type=repositories", "category_tag": "pentest"},
+    {"name": "NVD (NIST)",      "key": "nvd",           "url_template": "https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query={q}&search_type=all", "category_tag": "pentest"},
+    {"name": "Vulners",         "key": "vulners",       "url_template": "https://vulners.com/search?query={q}", "category_tag": "pentest"},
 ]
+
+DEFAULT_CATEGORIES: dict[str, dict] = {
+    "osint": {
+        "title": "OSINT & Pessoas",
+        "icon": "🕵️‍♂️",
+        "description": "Inteligência investigativa, arquivos históricos, dumps de leaks e fóruns públicos",
+        "engines": ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"],
+    },
+    "infra": {
+        "title": "Infra & Threat Intel",
+        "icon": "📡",
+        "description": "Infraestrutura de rede, certificados, portas abertas, DNS e reputação de ameaças",
+        "engines": ["shodan", "urlscan", "virustotal", "intelx"],
+    },
+    "pentest": {
+        "title": "Pentest & CVEs",
+        "icon": "💣",
+        "description": "Bancos de exploits, CVEs, PoCs, advisories de segurança e módulos Metasploit",
+        "engines": ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
+    },
+    "code": {
+        "title": "Código & Secrets",
+        "icon": "💻",
+        "description": "Repositórios públicos, busca em código-fonte, API keys e pegadas de desenvolvedor",
+        "engines": ["github", "grepapp", "google"],
+    },
+    "archive": {
+        "title": "Arquivos & Caches",
+        "icon": "🏛️",
+        "description": "Snapshots históricos na Wayback Machine e no Archive.today para páginas deletadas",
+        "engines": ["wayback", "archive-today"],
+    },
+    "web": {
+        "title": "Web Geral",
+        "icon": "🌐",
+        "description": "Motores de busca convencionais e independentes sem perfilamento cruzado",
+        "engines": ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"],
+    },
+    "all": {
+        "title": "Todas as Plataformas",
+        "icon": "⚡",
+        "description": "Disparo simultâneo em todas as plataformas cadastradas",
+        "engines": [e["key"] for e in DEFAULT_ENGINES],
+    },
+}
 
 ALIASES: dict[str, str] = {
     "ddg": "duckduckgo",
@@ -72,42 +127,6 @@ ALIASES: dict[str, str] = {
     "sploit": "sploitus",
 }
 
-CATEGORIES: dict[str, tuple[str, list[str]]] = {
-    "web": (
-        "General web search across unprofiled & independent engines",
-        ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"],
-    ),
-    "osint": (
-        "Core intelligence, archives, leak dumps, and investigative search",
-        ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"],
-    ),
-    "infra": (
-        "Network infrastructure, open ports, certificates, and threat intel",
-        ["shodan", "urlscan", "virustotal", "intelx"],
-    ),
-    "code": (
-        "Public repositories, code search, API keys, and developer footprinting",
-        ["github", "grepapp", "google"],
-    ),
-    "archive": (
-        "Historical snapshots, cached sites, and deleted page recovery",
-        ["wayback", "archive-today"],
-    ),
-    "pentest": (
-        "Penetration testing, exploits, CVEs, security advisories, and PoC repositories",
-        ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
-    ),
-    "exploit": (
-        "Alias for pentest profile (exploits, PoCs, Metasploit modules)",
-        ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
-    ),
-    "all": (
-        "All registered search engines across all domains",
-        [key for _, key, _ in ENGINES],
-    ),
-}
-
-# (Display Name, Alias, [Native Binaries], Flatpak App ID, is_chromium)
 KNOWN_BROWSERS = [
     ("LibreWolf",     "librewolf", ["librewolf"],                              "io.gitlab.librewolf-community",      False),
     ("Firefox",       "firefox",   ["firefox", "firefox-esr"],                 "org.mozilla.firefox",                False),
@@ -125,6 +144,49 @@ DEFAULT_INITIAL_DELAY = 1.0
 DEFAULT_TAB_DELAY = 0.3
 
 
+def get_default_config() -> dict:
+    return {
+        "engines": [dict(e) for e in DEFAULT_ENGINES],
+        "categories": {k: dict(v) for k, v in DEFAULT_CATEGORIES.items()},
+    }
+
+
+def load_config() -> dict:
+    """Loads configuration from ~/.config/multi_search/config.json or initializes default."""
+    if not CONFIG_FILE.exists():
+        cfg = get_default_config()
+        save_config(cfg)
+        return cfg
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+            if "engines" not in cfg or "categories" not in cfg:
+                raise ValueError("Formato de configuração inválido.")
+            return cfg
+    except Exception as e:
+        print(f"⚠️ Erro ao ler {CONFIG_FILE} ({e}). Carregando catálogo padrão.", file=sys.stderr)
+        return get_default_config()
+
+
+def save_config(cfg: dict) -> bool:
+    """Saves configuration to ~/.config/multi_search/config.json."""
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"⚠️ Erro ao salvar {CONFIG_FILE}: {e}", file=sys.stderr)
+        return False
+
+
+def reset_config() -> dict:
+    """Restores default configuration in ~/.config/multi_search/config.json."""
+    cfg = get_default_config()
+    save_config(cfg)
+    return cfg
+
+
 class BrowserInfo:
     def __init__(self, name: str, alias: str, command: str, btype: str, is_chromium: bool):
         self.name = name
@@ -132,6 +194,16 @@ class BrowserInfo:
         self.command = command
         self.btype = btype
         self.is_chromium = is_chromium
+
+    def to_dict(self, default_cmd: str) -> dict:
+        return {
+            "name": self.name,
+            "alias": self.alias,
+            "command": self.command,
+            "btype": self.btype,
+            "is_chromium": self.is_chromium,
+            "is_default": (self.command == default_cmd),
+        }
 
 
 def get_installed_browsers() -> list[BrowserInfo]:
@@ -173,7 +245,6 @@ def detect_default_browser() -> str:
     if not installed:
         return "flatpak run io.gitlab.librewolf-community"
 
-    # Priority order: LibreWolf -> Firefox -> Brave -> Chrome -> Chromium -> First available
     priority = ["librewolf", "firefox", "brave", "chrome", "chromium"]
     by_alias = {b.alias: b for b in installed}
 
@@ -228,13 +299,14 @@ def resolve_browser(input_browser: str) -> tuple[list[str], bool]:
     return cmd_list, is_chrom
 
 
-def list_engines() -> None:
+def list_engines(cfg: dict | None = None) -> None:
     """Displays the list of supported search engines."""
+    cfg = cfg or load_config()
     print("Supported search engines:\n")
     print(f"  {'Identifier':<16} {'Name':<18} {'Base URL'}")
     print(f"  {'-'*14:<16} {'-'*16:<18} {'-'*40}")
-    for name, key, tpl in ENGINES:
-        print(f"  {key:<16} {name:<18} {tpl}")
+    for item in cfg.get("engines", []):
+        print(f"  {item['key']:<16} {item['name']:<18} {item['url_template']}")
 
     print("\nShortcuts accepted in -e/--engines:")
     print("  ddg -> duckduckgo, sp -> startpage, perp -> perplexity, wb -> wayback,")
@@ -242,19 +314,25 @@ def list_engines() -> None:
     print("  edb -> exploitdb, sploit -> sploitus, ps -> packetstorm, msf -> rapid7, poc -> githubpoc")
 
 
-def list_categories() -> None:
+def list_categories(cfg: dict | None = None) -> None:
     """Displays available search category presets."""
+    cfg = cfg or load_config()
+    categories = cfg.get("categories", {})
     print("Available category presets (-c / --category):\n")
     print(f"  {'Category':<12} {'Engines Count':<15} {'Description'}")
     print(f"  {'-'*10:<12} {'-'*13:<15} {'-'*50}")
-    for cat_name, (desc, engines) in CATEGORIES.items():
-        print(f"  {cat_name:<12} {len(engines):<15} {desc}")
-        engines_str = ", ".join(engines)
-        print(f"  {'':<12} Engines: {engines_str}\n")
+    for cat_name, info in categories.items():
+        desc = info.get("description", "")
+        engs = info.get("engines", [])
+        print(f"  {cat_name:<12} {len(engs):<15} {desc}")
+        print(f"  {'':<12} Engines: {', '.join(engs)}\n")
 
 
-def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
+def filter_engines(selected: list[str], cfg: dict | None = None) -> list[tuple[str, str, str]]:
     """Filters the engine list by provided names or aliases."""
+    cfg = cfg or load_config()
+    all_engines = {e["key"]: (e["name"], e["key"], e["url_template"]) for e in cfg.get("engines", [])}
+
     selected_keys = set()
     for item in selected:
         for key in item.split(","):
@@ -264,25 +342,28 @@ def filter_engines(selected: list[str]) -> list[tuple[str, str, str]]:
             resolved = ALIASES.get(cleaned, cleaned)
             selected_keys.add(resolved)
 
-    filtered = [e for e in ENGINES if e[1] in selected_keys]
+    filtered = [all_engines[k] for k in selected_keys if k in all_engines]
     if not filtered:
-        valid = ", ".join([e[1] for e in ENGINES])
+        valid = ", ".join(all_engines.keys())
         print(f"Error: No valid search engine selected. Available engines: {valid}", file=sys.stderr)
         sys.exit(2)
     return filtered
 
 
-def get_engines_by_category(category: str) -> list[tuple[str, str, str]]:
+def get_engines_by_category(category: str, cfg: dict | None = None) -> list[tuple[str, str, str]]:
     """Returns engines corresponding to a category preset."""
+    cfg = cfg or load_config()
+    categories = cfg.get("categories", {})
     cat_lower = category.strip().lower()
-    if cat_lower not in CATEGORIES:
-        valid_cats = ", ".join(CATEGORIES.keys())
+
+    if cat_lower not in categories:
+        valid_cats = ", ".join(categories.keys())
         print(f"Error: Unknown category '{category}'. Available categories: {valid_cats}", file=sys.stderr)
         sys.exit(2)
 
-    _, keys = CATEGORIES[cat_lower]
-    key_set = set(keys)
-    return [e for e in ENGINES if e[1] in key_set]
+    all_engines = {e["key"]: (e["name"], e["key"], e["url_template"]) for e in cfg.get("engines", [])}
+    keys = categories[cat_lower].get("engines", [])
+    return [all_engines[k] for k in keys if k in all_engines]
 
 
 def calculate_delay(base: float, jitter: float) -> float:
@@ -300,13 +381,250 @@ def build_searches(term: str, engines: list[tuple[str, str, str]]) -> list[tuple
     return [(name, tpl.format(q=q)) for name, _, tpl in engines]
 
 
+def dispatch_searches(
+    term: str,
+    engines: list[tuple[str, str, str]],
+    browser_str: str,
+    private: bool = False,
+    human: bool = False,
+    delay: float = DEFAULT_TAB_DELAY,
+    jitter: float = 0.0,
+    initial_delay: float = DEFAULT_INITIAL_DELAY,
+    shuffle: bool = False,
+    dry_run: bool = False,
+) -> int:
+    """Executes the search opening pipeline across browser tabs/windows."""
+    browser_cmd, is_chromium = resolve_browser(browser_str)
+    if not browser_cmd:
+        print("Error: Invalid browser command.", file=sys.stderr)
+        return 2
+
+    if shutil.which(browser_cmd[0]) is None:
+        print(f"Error: Executable '{browser_cmd[0]}' not found in PATH.", file=sys.stderr)
+        return 1
+
+    if human:
+        shuffle = True
+        if delay == DEFAULT_TAB_DELAY:
+            delay = 1.8
+        if jitter == 0.0:
+            jitter = 0.8
+        if initial_delay == DEFAULT_INITIAL_DELAY:
+            initial_delay = 2.2
+
+    searches = build_searches(term, engines)
+    if shuffle:
+        random.shuffle(searches)
+
+    cmd_display = " ".join(browser_cmd)
+    if dry_run:
+        print(f"\n🔍 Search Query: \"{term}\"")
+        print(f"🌐 Browser: {cmd_display} ({'Chromium-based' if is_chromium else 'Firefox-based'})")
+        if human:
+            print("👤 Human Simulation: Enabled (shuffled order, dynamic jitter 1.0s-2.6s)")
+        elif shuffle:
+            print("🔀 Shuffled Order: Enabled")
+        print(f"📑 Total engines: {len(searches)}\n")
+        for name, url in searches:
+            print(f"  [{name:<16}] {url}")
+        print()
+        return 0
+
+    mode_label = "private/incognito" if private else "standard"
+    human_tag = " | Human Simulation: ON" if human else ""
+    print(f"🔍 Multi-Search | Query: \"{term}\" | Engines: {len(searches)} | Browser: {cmd_display} | Mode: {mode_label}{human_tag}")
+
+    try:
+        first_engine, first_url = searches[0]
+        if is_chromium:
+            window_flags = ["--incognito", "--new-window", first_url] if private else ["--new-window", first_url]
+        else:
+            window_flags = ["--private-window", first_url] if private else ["--new-window", first_url]
+
+        print(f" [1/{len(searches)}] 🚀 Spawning window with {first_engine}...")
+        subprocess.Popen(browser_cmd + window_flags)
+
+        if len(searches) > 1:
+            init_wait = calculate_delay(initial_delay, 0.4 if human else 0.0)
+            time.sleep(init_wait)
+
+            for idx, (name, url) in enumerate(searches[1:], start=2):
+                wait_time = calculate_delay(delay, jitter)
+                delay_info = f" (interval: {wait_time}s)" if (human or jitter > 0) else ""
+                print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}{delay_info}...")
+                if is_chromium:
+                    tab_flags = ["--incognito", url] if private else [url]
+                else:
+                    tab_flags = ["--new-tab", url]
+                subprocess.Popen(browser_cmd + tab_flags)
+                time.sleep(wait_time)
+
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Interrupted by user.", file=sys.stderr)
+        return 130
+
+    print("✨ All tabs dispatched successfully!")
+    return 0
+
+
+# ============================================================================
+# EMBEDDED HTTP SERVER FOR WEB UI
+# ============================================================================
+
+class MultiSearchRequestHandler(BaseHTTPRequestHandler):
+    def log_message(self, format: str, *args) -> None:
+        pass  # Suppress default noisy console logs
+
+    def _send_json(self, data: dict, status: int = 200) -> None:
+        encoded = json.dumps(data).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def do_GET(self) -> None:
+        path = self.path.split("?")[0]
+        if path in ("/", "/index.html", "/ui"):
+            html_file = UI_DIR / "index.html"
+            if not html_file.exists():
+                self.send_error(404, "UI index.html não encontrado no pacote.")
+                return
+            content = html_file.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        elif path == "/api/config":
+            cfg = load_config()
+            installed = get_installed_browsers()
+            default_cmd = detect_default_browser()
+            cfg["installed_browsers"] = [b.to_dict(default_cmd) for b in installed]
+            self._send_json(cfg)
+        else:
+            self.send_error(404, "Endpoint não encontrado.")
+
+    def do_POST(self) -> None:
+        path = self.path.split("?")[0]
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length) if length > 0 else b"{}"
+
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except Exception:
+            payload = {}
+
+        if path == "/api/config":
+            if "engines" in payload and "categories" in payload:
+                save_config(payload)
+                self._send_json({"status": "ok", "message": "Configuração salva com sucesso!"})
+            else:
+                self._send_json({"status": "error", "message": "Estrutura de dados inválida."}, status=400)
+
+        elif path == "/api/reset":
+            cfg = reset_config()
+            installed = get_installed_browsers()
+            default_cmd = detect_default_browser()
+            cfg["installed_browsers"] = [b.to_dict(default_cmd) for b in installed]
+            self._send_json(cfg)
+
+        elif path == "/api/launch":
+            term = payload.get("query", "").strip()
+            if not term:
+                self._send_json({"status": "error", "message": "Termo de busca vazio."}, status=400)
+                return
+
+            cfg = load_config()
+            all_engines = {e["key"]: (e["name"], e["key"], e["url_template"]) for e in cfg.get("engines", [])}
+            selected_keys = payload.get("engines", [])
+            target_engines = [all_engines[k] for k in selected_keys if k in all_engines]
+
+            if not target_engines:
+                self._send_json({"status": "error", "message": "Nenhuma plataforma válida encontrada."}, status=400)
+                return
+
+            browser_req = payload.get("browser") or detect_default_browser()
+            is_private = bool(payload.get("private", False))
+            is_human = bool(payload.get("human", False))
+            delay = float(payload.get("delay", DEFAULT_TAB_DELAY))
+
+            # Dispatch asynchronously in host so HTTP endpoint returns immediately
+            def run_dispatch():
+                dispatch_searches(
+                    term=term,
+                    engines=target_engines,
+                    browser_str=browser_req,
+                    private=is_private,
+                    human=is_human,
+                    delay=delay,
+                )
+
+            t = threading.Thread(target=run_dispatch, daemon=True)
+            t.start()
+
+            self._send_json({
+                "status": "ok",
+                "message": f"Disparando {len(target_engines)} plataformas no host via {browser_req}!",
+                "engines_count": len(target_engines),
+            })
+        else:
+            self.send_error(404, "Endpoint não encontrado.")
+
+
+def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
+    """Starts the embedded HTTP server for the web interface and opens the default browser."""
+    server_address = ("127.0.0.1", port)
+    try:
+        httpd = HTTPServer(server_address, MultiSearchRequestHandler)
+    except OSError:
+        # Try alternate port
+        port += 1
+        server_address = ("127.0.0.1", port)
+        httpd = HTTPServer(server_address, MultiSearchRequestHandler)
+
+    url = f"http://localhost:{port}"
+    print("=" * 68)
+    print("  🕵️‍♂️  MULTI-SEARCH — OSINT Recon Hub & Command Center")
+    print(f"  🌐 Servidor local ativo em: {url}")
+    print("  ⚙️  Configuração salva em: ~/.config/multi_search/config.json")
+    print("  ⌨️  Pressione [Ctrl + C] para encerrar.")
+    print("=" * 68)
+
+    if open_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\n🛑 Servidor Multi-Search encerrado.")
+    return 0
+
+
+# ============================================================================
+# CLI MAIN ENTRYPOINT
+# ============================================================================
+
 def main() -> int:
+    # If invoked with no arguments or explicitly requesting UI, launch web hub
+    if len(sys.argv) == 1:
+        return start_ui_server()
+
+    if len(sys.argv) == 2 and sys.argv[1] in ("--ui", "--web", "ui", "web"):
+        return start_ui_server()
+
+    cfg = load_config()
     default_browser = detect_default_browser()
 
     p = argparse.ArgumentParser(
         description="Multi-Search: Opens multiple browser tabs across search engines and OSINT sources.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Examples:\n"
+               "  %(prog)s                       (Launches the interactive Web UI hub)\n"
                "  %(prog)s python web scraping\n"
                "  %(prog)s -c osint john doe target\n"
                "  %(prog)s -c infra malicious-domain.com\n"
@@ -323,9 +641,15 @@ def main() -> int:
         help="Search query (quotes are optional, multiple words are joined automatically).",
     )
     p.add_argument(
+        "--ui", "--web",
+        dest="open_ui",
+        action="store_true",
+        help="Launch the interactive Web UI Command Center in your browser.",
+    )
+    p.add_argument(
         "-c", "--category",
         default="web",
-        help="Category preset to search (default: 'web'). Options: web, osint, infra, code, archive, all.",
+        help="Category preset to search (default: 'web'). Options: web, osint, infra, code, archive, pentest, all.",
     )
     p.add_argument(
         "-e", "--engines",
@@ -394,12 +718,15 @@ def main() -> int:
 
     args = p.parse_args()
 
+    if args.open_ui:
+        return start_ui_server()
+
     if args.list_categories:
-        list_categories()
+        list_categories(cfg)
         return 0
 
     if args.list_engines:
-        list_engines()
+        list_engines(cfg)
         return 0
 
     if args.list_browsers:
@@ -407,98 +734,31 @@ def main() -> int:
         return 0
 
     if not args.termo:
-        print("Error: Missing search query (QUERY). See usage below:\n", file=sys.stderr)
-        p.print_help(file=sys.stderr)
-        return 2
+        return start_ui_server()
 
     term = " ".join(args.termo).strip()
     if not term:
         print("Error: Search query cannot be empty.", file=sys.stderr)
         return 2
 
-    browser_cmd, is_chromium = resolve_browser(args.browser)
-    if not browser_cmd:
-        print("Error: Invalid browser command.", file=sys.stderr)
-        return 2
-
-    if shutil.which(browser_cmd[0]) is None:
-        print(f"Error: Executable '{browser_cmd[0]}' not found in PATH.", file=sys.stderr)
-        return 1
-
-    # Human simulation presets
-    if args.human:
-        args.shuffle = True
-        if args.delay == DEFAULT_TAB_DELAY:
-            args.delay = 1.8
-        if args.jitter == 0.0:
-            args.jitter = 0.8
-        if args.initial_delay == DEFAULT_INITIAL_DELAY:
-            args.initial_delay = 2.2
-
     # Resolve target engines
     if args.engines:
-        engines = filter_engines([args.engines])
-        active_preset = f"custom ({len(engines)} engines)"
+        engines = filter_engines([args.engines], cfg)
     else:
-        engines = get_engines_by_category(args.category)
-        active_preset = f"category '{args.category}'"
+        engines = get_engines_by_category(args.category, cfg)
 
-    searches = build_searches(term, engines)
-    if args.shuffle:
-        random.shuffle(searches)
-
-    cmd_display = " ".join(browser_cmd)
-    if args.dry_run:
-        print(f"\n🔍 Search Query: \"{term}\"")
-        print(f"🏷️  Profile: {active_preset}")
-        print(f"🌐 Browser: {cmd_display} ({'Chromium-based' if is_chromium else 'Firefox-based'})")
-        if args.human:
-            print("👤 Human Simulation: Enabled (shuffled order, dynamic jitter 1.0s-2.6s)")
-        elif args.shuffle:
-            print("🔀 Shuffled Order: Enabled")
-        print(f"📑 Total engines: {len(searches)}\n")
-        for name, url in searches:
-            print(f"  [{name:<16}] {url}")
-        print()
-        return 0
-
-    mode_label = "private/incognito" if args.private else "standard"
-    human_tag = " | Human Simulation: ON" if args.human else ""
-    print(f"🔍 Multi-Search | Query: \"{term}\" | Profile: {active_preset} | Browser: {cmd_display} | Mode: {mode_label}{human_tag}")
-
-    try:
-        # 1) Open first URL in a new window
-        first_engine, first_url = searches[0]
-        if is_chromium:
-            window_flags = ["--incognito", "--new-window", first_url] if args.private else ["--new-window", first_url]
-        else:
-            window_flags = ["--private-window", first_url] if args.private else ["--new-window", first_url]
-
-        print(f" [1/{len(searches)}] 🚀 Spawning window with {first_engine}...")
-        subprocess.Popen(browser_cmd + window_flags)
-
-        if len(searches) > 1:
-            init_wait = calculate_delay(args.initial_delay, 0.4 if args.human else 0.0)
-            time.sleep(init_wait)
-
-            # 2) Open subsequent URLs in new tabs
-            for idx, (name, url) in enumerate(searches[1:], start=2):
-                wait_time = calculate_delay(args.delay, args.jitter)
-                delay_info = f" (interval: {wait_time}s)" if (args.human or args.jitter > 0) else ""
-                print(f" [{idx}/{len(searches)}] 📄 Opening tab: {name}{delay_info}...")
-                if is_chromium:
-                    tab_flags = ["--incognito", url] if args.private else [url]
-                else:
-                    tab_flags = ["--new-tab", url]
-                subprocess.Popen(browser_cmd + tab_flags)
-                time.sleep(wait_time)
-
-    except KeyboardInterrupt:
-        print("\n\n⚠️ Interrupted by user.", file=sys.stderr)
-        return 130
-
-    print("✨ All tabs dispatched successfully!")
-    return 0
+    return dispatch_searches(
+        term=term,
+        engines=engines,
+        browser_str=args.browser,
+        private=args.private,
+        human=args.human,
+        delay=args.delay,
+        jitter=args.jitter,
+        initial_delay=args.initial_delay,
+        shuffle=args.shuffle,
+        dry_run=args.dry_run,
+    )
 
 
 if __name__ == "__main__":
