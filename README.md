@@ -69,7 +69,6 @@ echo "alias ms='msearch'" >> ~/.zshrc && source ~/.zshrc
 
 ## 🖥️ Interactive Web UI Command Center
 
-<!-- Screenshot Placeholder: Place your web UI screenshot in docs/assets/web_ui.png or update the link below -->
 <div align="center">
 
 ![Multi-Search OSINT Recon Hub & Command Center](assets/web_ui_dashboard.png)
