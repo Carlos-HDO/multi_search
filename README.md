@@ -1,227 +1,59 @@
 # Multi-Search (`msearch`)
 
-A command-line investigation and reconnaissance tool originally designed for **OSINT (Open Source Intelligence)** workflows, threat intelligence, and cyber investigations. It allows researchers to fire simultaneous, coordinated queries across multiple search engines and specialized intelligence platforms directly into browser tabs (LibreWolf, Firefox, Brave, Chrome, or any browser of choice).
+A dual-mode intelligence and reconnaissance suite designed for **OSINT (Open Source Intelligence)**, threat hunting, vulnerability research, and comprehensive web investigations.
+
+It operates seamlessly as both a **fast command-line tool** and an **interactive Web UI Command Center**, firing coordinated queries across 24 specialized intelligence sources, vulnerability databases, code search engines, and web archives directly into your preferred browser (LibreWolf, Firefox, Brave, Chrome, Chromium, or Tor Browser).
 
 ---
 
-## 🎯 Motivation & Design
+## 🎯 Key Capabilities
 
-During OSINT investigations, pivoting on an indicator (a handle, domain, email, IP address, or leaked string) typically requires querying multiple independent search indexes, threat intel databases, code repositories, and web archives. Doing this manually across dozens of open tabs is repetitive and prone to bias.
-
-`msearch` automates this entire discovery cycle in a single command, organizing search engines into dedicated intelligence profiles with controlled pacing to prevent browser lag and rate-limiting.
-
-> **Default Behavior**: If no category or flags are specified (`msearch <query>`), the tool **automatically defaults to the `web` profile**, opening 7 unprofiled, distinct search engines (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, and Perplexity) for clean baseline reconnaissance without overwhelming your workstation.
-
----
-
-## ⚡ Features
-
-- **Interactive Web UI & Command Center (`msearch` / `msearch --ui`)**:
-  - Running `msearch` without arguments launches an integrated, zero-dependency web interface on `http://localhost:7890`.
-  - Visual selection of profiles, checkboxes for engines, live CLI command generation, and direct OS-level execution.
-  - **Plataform CRUD**: Add, edit, remove platforms, and assign them to profiles with persistence in `~/.config/multi_search/config.json`.
-- **Built for OSINT & Security Research**: Dispatches queries across 24 specialized search engines, vulnerability databases, and intelligence sources.
-- **Dedicated Intelligence Profiles (`-c` / `--category`)**:
-  - `web`: Clean multi-index web search (Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity).
-  - `osint`: Deep investigations, person/entity footprinting, darkweb/paste dumps, reverse search, and archives (Google, Brave, Yandex, IntelX, Wayback Machine, Archive.today, URLScan, Reddit).
-  - `infra`: Network infrastructure, open ports, TLS/SSL certificates, and threat intel (Shodan, URLScan, VirusTotal, IntelX).
-  - `code`: Public codebases, leaked secrets, exposed tokens, and author footprinting (GitHub Code, Grep.app, Google).
-  - `archive`: Historical snapshots and recovery of deleted pages (Wayback Machine, Archive.today).
-  - `pentest` / `exploit`: Penetration testing, exploits, CVEs, security advisories, and PoC repositories (Exploit-DB, Sploitus, Packet Storm, Rapid7 Metasploit, SecLists, GitHub PoC, NVD NIST, Vulners).
-  - `all`: Full spectrum sweep across all 24 engines simultaneously.
-- **Smart Browser Detection & Aliases**: Automatically scans and prioritizes installed browsers (LibreWolf, Firefox, Brave, Chrome, Chromium, Tor Browser). Supports instant aliases like `-b brave` or `-b chrome`.
-- **Surgical Engine Targeting (`-e` / `--engines`)**: Run queries on specific engines using aliases (e.g. `-e shodan,vt,intelx`).
-- **Private / Incognito Browsing (`-p` / `--private`)**: Automatically uses `--private-window` (Firefox/LibreWolf) or `--incognito` (Brave/Chrome/Chromium) to ensure clean unprofiled investigations.
-- **Pacing Control (`-d` / `--delay`)**: Spaced tab dispatching to prevent browser freezing, dropped tabs, or search engine CAPTCHAs.
-- **Dry-Run Inspection (`--dry-run`)**: Preview generated URLs in your terminal before launching the browser.
+- **🖥️ Dual Mode (CLI & Interactive Web UI)**:
+  - **Interactive Web Hub**: Run `msearch` (or `ms`) with no arguments to launch the local Command Center at `http://localhost:7890`.
+  - **Direct Terminal Power**: Run `msearch "query"` to immediately dispatch searches from the terminal.
+- **⚡ 24 Built-in Intelligence & Security Engines**:
+  - General indexes, threat intel databases, code search, historical archives, and exploit repositories.
+- **🏷️ Dedicated Intelligence Profiles (`-c` / `--category`)**:
+  - `web` *(Default CLI)*: Clean multi-index search across 7 independent engines without profiling.
+  - `osint`: Deep investigations, person/entity footprinting, paste/darkweb dumps, and archives.
+  - `infra`: Network infrastructure, open ports, certificates, DNS, and threat intelligence.
+  - `code`: Public repositories, leaked secrets, exposed tokens, and developer footprinting.
+  - `archive`: Historical snapshots and recovery of deleted pages.
+  - `pentest` / `exploit`: Penetration testing, exploits, CVEs, security advisories, and PoCs.
+  - `all`: Full spectrum sweep across all 24 platforms simultaneously.
+- **🛠️ Platform Customization & CRUD**:
+  - Add custom search platforms with URL template (`{q}` placeholder), edit, remove, and categorize them.
+  - Persistent storage in `~/.config/multi_search/config.json`.
+- **🌐 Automatic Browser Detection & Aliases**:
+  - Auto-detects Native, Flatpak, and Snap installations (LibreWolf, Firefox, Brave, Chrome, Chromium, Tor Browser).
+- **🕵️ Private / Incognito Mode (`-p`)**:
+  - Spawns private/incognito windows to prevent tracking and avoid search bias.
+- **👤 Human Simulation & Anti-Bot Evasion (`-H`)**:
+  - Dynamic jitter (organic pacing 1.0s-2.6s) and shuffled order (`--shuffle`) to bypass Cloudflare/WAF bot detection.
 
 ---
 
-## 📦 Dependencies
+## 📦 Requirements & Installation
 
-Ensure you have **Python 3.8+** and a supported web browser installed:
+### Requirements
+- **Python 3.8+** (Standard library only — **zero external pip dependencies**).
+- At least one supported web browser (LibreWolf, Firefox, Brave, Chrome, Chromium, Tor Browser).
 
-### Debian / Ubuntu / Kali / Pop!_OS
+### Quick Installation
+
+Clone the repository and run the installer:
 ```bash
-sudo apt update && sudo apt install -y python3
-```
-
-### Supported Browsers
-By default, `msearch` will automatically detect and prioritize installed browsers:
-1. LibreWolf (Native or Flatpak `io.gitlab.librewolf-community`)
-2. Firefox (`firefox`)
-3. Brave (`brave` or `com.brave.Browser`)
-4. Google Chrome (`com.google.Chrome` or native)
-5. Chromium (Native or Snap)
-6. Tor Browser (`org.torproject.torbrowser-launcher`)
-
-To inspect all browsers detected on your system:
-```bash
-msearch --list-browsers
-```
-
----
-
-## 🚀 Usage & Examples
- 
-### 1. Interactive Web UI & Command Center
-Simply run `msearch` (or `msearch --ui`):
-```bash
-msearch
-```
-This starts the local web server and opens `http://localhost:7890` in your browser. You can visually select profiles, customize platforms, generate CLI commands, and dispatch native browser searches with one click.
-
-### 2. Default Direct CLI Search (`web` profile)
-If you provide a search query directly in the terminal, `msearch` executes the search immediately:
-```bash
-# Automatically searches: Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity
-msearch python web scraping
-```
-
-### 3. OSINT & Entity Investigations (`-c osint`)
-Investigate a username, person, or organization across general engines, Intelligence X leaks, archives, and Reddit:
-```bash
-msearch -p -c osint "target username"
-```
-
-### 3. Infrastructure & Network Reconnaissance (`-c infra`)
-Query an IP address, domain, or certificate against Shodan, URLScan, VirusTotal, and Intelligence X:
-```bash
-msearch -c infra malicious-c2.com
-msearch -c infra 185.220.101.5
-```
-
-### 4. Code & Leaked Secret Reconnaissance (`-c code`)
-Hunt for leaked API keys, tokens, or repository signatures on GitHub, Grep.app, and Google:
-```bash
-msearch -c code "AIzaSy"
-msearch -c code "AWS_SECRET_ACCESS_KEY"
-```
-
-### 5. Historical Snapshots & Deleted Pages (`-c archive`)
-Recover deleted blog posts, old social media pages, or offline websites via Wayback Machine and Archive.today:
-```bash
-msearch -c archive https://example.com/deleted-article
-```
-
-### 6. Pentest & Exploit Research (`-c pentest` / `-c exploit`)
-Search for public exploits, Proof-of-Concepts (PoCs), CVE details, Metasploit modules, and security advisories across Exploit-DB, Sploitus, Packet Storm, Rapid7 Metasploit, SecLists, GitHub PoC, NVD NIST, and Vulners:
-```bash
-# Research exploits for a specific software version
-msearch -c pentest "vsftpd 2.3.4"
-
-# Research a specific CVE across exploit databases and GitHub PoCs
-msearch -c exploit "CVE-2024-3094"
-
-# Query specific exploit repositories directly
-msearch -e exploitdb,sploitus,packetstorm "OpenSSH 8.2"
-```
-
-### 7. Specific Engine Targeting (`-e` / `--engines`)
-Target precise engines using shortcuts (`shodan`, `vt`, `intelx`, `edb`, `sploit`, `ps`, `msf`, `poc`, etc.):
-```bash
-# Threat intel lookup on an IP
-msearch -e shodan,urlscan,virustotal 1.1.1.1
-
-# Privacy-focused search
-msearch -e brave,startpage,duckduckgo "zero-day vulnerability"
-```
-
-### 8. Choosing a Browser (`-b` / `--browser`)
-Switch browsers effortlessly with aliases:
-```bash
-# Use Brave Browser (Flatpak or Native)
-msearch -b brave -c osint target-handle
-
-# Use Firefox in private mode
-msearch -b firefox -p -c infra target-domain.com
-
-# Use Google Chrome
-msearch -b chrome kubernetes architecture
-```
-
-### 9. Human Simulation & Anti-Bot Evasion (`-H` / `--human`)
-
-When conducting repeated queries, major search engines (particularly Google and Yandex) deploy behavioral heuristics that detect automated scripts and trigger CAPTCHAs. 
-
-The **`-H`** (`--human`) flag simulates realistic, non-deterministic human browsing behavior through three core techniques:
-
-1. **Dynamic Delay Jitter (Organic Pacing):**
-   * Replaces mechanical, exact micro-delays (e.g., `0.3s`) with natural floating-point randomized intervals between **`1.0s` and `2.6s`** per tab.
-2. **Tab Order Shuffling (Breaking Traffic Signatures):**
-   * Randomizes the sequence in which search engines are opened on every execution (`--shuffle`), preventing CDNs and bot detection engines from recognizing fixed request fingerprints.
-3. **Organic Window Initialization:**
-   * Allocates an initial organic startup delay (`~2.2s`) to allow the browser window to instantiate its IPC socket before tab dispatching begins.
-
-```bash
-# Full human simulation (Randomized delay jitter 1.0s-2.6s + Shuffled tab order):
-msearch -H -c osint "target username"
-
-# Or manually customize delay and jitter variance:
-msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
-```
-
-> [!TIP]
-> **Crucial Tips to Mitigate Search Engine CAPTCHAs:**
->
-> - **Avoid using private/incognito mode (`-p`) repeatedly:**  
->   Private and incognito windows lack browsing history, cache, and valid session cookies. Search engine anti-bot heuristics (especially Google and Yandex) immediately flag cold requests originating from clean sessions as automated scraping bots.
-> - **Use your daily browser profile:**  
->   Running `msearch` on your primary daily browser (where you already have accumulated legitimate cookies and active session history) in combination with the **`-H`** flag drastically reduces the occurrence of verification challenges.
-
-### 10. Preview URLs without Opening Browser (`--dry-run`)
-```bash
-msearch --dry-run -c osint "john doe"
-```
-
-### 11. Discovery & Help Commands
-```bash
-msearch --list-categories  # View available category presets (-c)
-msearch --list-engines     # View all 24 supported search engines (-e)
-msearch --list-browsers    # View detected installed browsers (-b)
-```
-
----
-
-## 🛠️ Command-Line Options
-
-| Flag | Argument | Description |
-| :--- | :--- | :--- |
-| `QUERY` | `[string...]` | Search query (multiple words are joined automatically) |
-| `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `pentest`, `exploit`, `all` |
-| `-e`, `--engines` | `<list>` | Comma-separated list of engines to query (e.g. `shodan,vt,intelx,edb`) |
-| `-H`, `--human` | None | Simulate human pacing: random delay intervals (jitter 1.0s-2.6s) & shuffled order |
-| `--shuffle` | None | Randomize the opening order of search engine tabs to break request patterns |
-| `-j`, `--jitter` | `<sec>` | Add random variation (±SECONDS) around tab delay intervals (e.g. `-j 0.8`) |
-| `-lc`, `--list-categories`| None | Display available category presets and exit |
-| `-l`, `--list-engines` | None | Display all supported search engines and exit |
-| `-lb`, `--list-browsers` | None | Scan and list detected installed web browsers and exit |
-| `-b`, `--browser` | `<alias\|cmd>` | Browser alias (`brave`, `chrome`, `firefox`, etc.) or custom command |
-| `-p`, `--private` | None | Open search in a new private/incognito window |
-| `-d`, `--delay` | `<sec>` | Delay in seconds between opening tabs (default: `0.3s`) |
-| `--initial-delay` | `<sec>` | Delay before opening tabs to allow window startup (default: `1.0s`) |
-| `--dry-run` | None | Preview formatted search URLs without launching the browser |
-| `-h`, `--help` | None | Display help and usage instructions |
-
----
-
-## 🔗 Setup & Shell Integration
-
-### Quick Install
-Run the installation script to create symlinks in `~/.local/bin/`:
-```bash
+git clone https://github.com/Carlos-HDO/multi_search.git
+cd multi_search
 chmod +x install.sh
 ./install.sh
 ```
 
-Ensure `~/.local/bin` is in your `PATH`:
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # For Bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc    # For Zsh
-```
+The script creates symlinks in `~/.local/bin/` (`msearch` and `multi_search`).
 
-### Shell Alias (Optional)
-Alternatively, add a short alias like `ms` to your `~/.bashrc` or `~/.zshrc`:
+### Shell Alias (Recommended)
+
+Add a convenient 2-letter alias `ms` to your shell profile:
 
 #### Bash:
 ```bash
@@ -235,6 +67,181 @@ echo "alias ms='msearch'" >> ~/.zshrc && source ~/.zshrc
 
 ---
 
+## 🖥️ Interactive Web UI Command Center
+
+Simply run `msearch` (or `ms`) with no arguments:
+
+```bash
+msearch
+```
+
+This starts the embedded local web server and automatically opens `http://localhost:7890` in your default browser.
+
+```
+====================================================================
+  🕵️‍♂️  MULTI-SEARCH — OSINT Recon Hub & Command Center
+  🌐 Servidor local ativo em: http://localhost:7890
+  ⚙️  Configuração salva em: ~/.config/multi_search/config.json
+  ⌨️  Pressione [Ctrl + C] para encerrar.
+====================================================================
+```
+
+### Web UI Features:
+1. **Profile Cards**: Visual cards with aligned engine count badges and bottom-aligned descriptions. Clicking a profile instantly selects its active platforms.
+2. **Platform Management (CRUD)**:
+   - `➕ Nova Plataforma`: Add custom search engines with visual category tags.
+   - `✏️ Editar`: Update existing URLs and profile associations.
+   - `✕ Remover`: Delete custom or unwanted engines.
+   - `Marcar Todas` / `Desmarcar Todas`: Bulk selection controls.
+   - `↺ Restaurar Padrões`: Factory reset to the 24 default platforms.
+3. **Execution Controls**:
+   - Browser selector (showing all detected system browsers).
+   - Interval pacing with presets (0.3s, 0.6s, 1.2s, 2.0s, 3.0s, 5.0s) and custom seconds.
+   - Toggle buttons for Private Mode (`-p`) and Human Simulation (`-H`) with explanatory info modals.
+4. **Live CLI Command Builder**: Generates the exact equivalent `msearch` CLI command with a one-click copy button.
+5. **Direct OS Launching**: `🚀 Abrir Todas as Abas` triggers native background browser execution on the host operating system.
+
+---
+
+## ⚡ Direct CLI Usage & Examples
+
+### 1. Default Web Search (`web` profile)
+When querying without category flags, `msearch` defaults to the **`web`** profile (7 unprofiled engines):
+```bash
+# Searches: Google, Brave, DuckDuckGo, Startpage, Yandex, Bing, Perplexity
+msearch python web scraping
+```
+
+### 2. OSINT & Entity Investigations (`-c osint`)
+Investigate usernames, handles, people, or organizations across search engines, IntelX leaks, archives, and Reddit:
+```bash
+msearch -p -c osint "target_username"
+```
+
+### 3. Infrastructure & Threat Intel Reconnaissance (`-c infra`)
+Query an IP address, domain, or certificate across Shodan, URLScan, VirusTotal, and IntelX:
+```bash
+msearch -c infra malicious-c2.com
+msearch -c infra 1.1.1.1
+```
+
+### 4. Code & Leaked Secret Reconnaissance (`-c code`)
+Hunt for leaked API keys, tokens, or repository signatures on GitHub Code, Grep.app, and Google:
+```bash
+msearch -c code "AWS_SECRET_ACCESS_KEY"
+msearch -c code "AIzaSy"
+```
+
+### 5. Historical Snapshots & Deleted Pages (`-c archive`)
+Recover deleted blog posts, social media profiles, or offline websites via Wayback Machine and Archive.today:
+```bash
+msearch -c archive https://example.com/deleted-article
+```
+
+### 6. Pentest, Exploit & CVE Research (`-c pentest` / `-c exploit`)
+Search for public exploits, PoCs, CVE details, Metasploit modules, and security advisories across Exploit-DB, Sploitus, Packet Storm, Rapid7 Metasploit, SecLists, GitHub PoC, NVD NIST, and Vulners:
+```bash
+# Research exploits for a software version
+msearch -c pentest "vsftpd 2.3.4"
+
+# Research a specific CVE across exploit databases and PoC repos
+msearch -c exploit "CVE-2024-3094"
+
+# Query specific exploit platforms directly
+msearch -e exploitdb,sploitus,packetstorm "OpenSSH 8.2"
+```
+
+### 7. Surgical Engine Targeting (`-e` / `--engines`)
+Target specific platforms using shortcuts (`shodan`, `vt`, `intelx`, `edb`, `sploit`, `ps`, `msf`, `poc`, etc.):
+```bash
+# Threat intel lookup on an IP
+msearch -e shodan,urlscan,virustotal 185.220.101.5
+
+# Privacy search
+msearch -e brave,startpage,duckduckgo "zero-day vulnerability"
+```
+
+### 8. Choosing a Browser (`-b` / `--browser`)
+Specify any installed browser or alias:
+```bash
+# Use Brave Browser (Flatpak or Native)
+msearch -b brave -c osint target-handle
+
+# Use Firefox in private mode
+msearch -b firefox -p -c infra target-domain.com
+
+# Use Google Chrome
+msearch -b chrome kubernetes security
+```
+
+### 9. Human Simulation & Anti-Bot Evasion (`-H` / `--human`)
+Mitigates search engine CAPTCHAs and WAF blocks (Cloudflare, Akamai) by:
+1. Applying dynamic jitter variance (**1.0s to 2.6s** per tab).
+2. Shuffling tab dispatch order (**`--shuffle`**) to break predictable request fingerprints.
+3. Allocating an organic initial startup delay (**~2.2s**) for the browser window.
+
+```bash
+# Full human simulation:
+msearch -H -c osint "target username"
+
+# Custom delay and jitter variance:
+msearch -d 1.5 -j 0.8 --shuffle -c infra target-domain.com
+```
+
+> [!TIP]
+> **Anti-CAPTCHA Best Practices:**
+> - Avoid running consecutive bulk searches in private/incognito mode (`-p`), as cold sessions with zero cookie history are flagged more aggressively by anti-bot systems.
+> - Running `msearch` on your primary daily browser with legitimate cookies in combination with `-H` significantly reduces verification challenges.
+
+### 10. Preview URLs Without Opening Browser (`--dry-run`)
+```bash
+msearch --dry-run -c osint "target keyword"
+```
+
+### 11. System Discovery Commands
+```bash
+msearch --list-categories  # View available category presets (-c)
+msearch --list-engines     # View all registered search engines (-e)
+msearch --list-browsers    # View detected installed browsers (-b)
+```
+
+---
+
+## 🛠️ Command-Line Options Reference
+
+| Flag | Argument | Description |
+| :--- | :--- | :--- |
+| `QUERY` | `[string...]` | Search query (quotes optional; multiple words joined automatically) |
+| `--ui`, `--web` | None | Launch the interactive Web UI Command Center in browser |
+| `-c`, `--category` | `<name>` | Category preset: **`web` (default)**, `osint`, `infra`, `code`, `archive`, `pentest`, `exploit`, `all` |
+| `-e`, `--engines` | `<list>` | Comma-separated list of engines/shortcuts (e.g. `shodan,vt,intelx,edb`) |
+| `-b`, `--browser` | `<alias\|cmd>` | Browser alias (`librewolf`, `brave`, `chrome`, `firefox`, etc.) or raw command |
+| `-p`, `--private` | None | Open search in a new private/incognito window |
+| `-H`, `--human` | None | Simulate human pacing: random delay intervals (1.0s-2.6s) & shuffled order |
+| `--shuffle` | None | Randomize the opening order of search engine tabs |
+| `-j`, `--jitter` | `<sec>` | Add random variation (±SECONDS) around tab delay intervals (e.g. `-j 0.8`) |
+| `-d`, `--delay` | `<sec>` | Delay in seconds between opening tabs (default: `0.3s`) |
+| `--initial-delay` | `<sec>` | Delay before opening tabs to allow window startup (default: `1.0s`) |
+| `--dry-run` | None | Preview formatted URLs in terminal without launching browser |
+| `-lc`, `--list-categories`| None | Display available category presets and exit |
+| `-l`, `--list-engines` | None | Display all supported search engines and exit |
+| `-lb`, `--list-browsers` | None | Scan and list detected installed web browsers and exit |
+| `-h`, `--help` | None | Display help and usage instructions |
+
+---
+
+## 📁 Configuration File
+
+All custom search engines, updated profiles, and configuration options are persisted in:
+
+```
+~/.config/multi_search/config.json
+```
+
+Any changes made via the Web UI are instantly available in both the Web UI and the CLI tool.
+
+---
+
 ## 📄 License
 
-Distributed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0) - ensuring this tool and derivative works remain free and open source forever. Copyright (c) 2026 Carlos Dias.
+Distributed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0). Free and open source forever. Copyright (c) 2026 Carlos Dias.
