@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multi-Search OSINT & Clear Web Recon Hub</title>
+  <title>Multi-Search — OSINT Recon Hub & Command Center</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -86,6 +86,49 @@
     .brand-text p {
       font-size: 0.78rem;
       color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    /* Language Switcher */
+    .lang-switcher {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: var(--transition-smooth);
+    }
+
+    .lang-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .lang-btn.active {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
 
     /* Host installation banner */
@@ -647,8 +690,15 @@
       <div class="brand">
         <div class="brand-icon">🕵️‍♂️</div>
         <div class="brand-text">
-          <h1>Multi-Search OSINT & Clear Web Recon Hub</h1>
-          <p>Investigação manual e reconhecimento simultâneo em 24 plataformas OSINT, ameaças, vulnerabilidades e motores de busca</p>
+          <h1 id="brand-title">Multi-Search OSINT & Clear Web Recon Hub</h1>
+          <p id="brand-subtitle">Manual investigation and simultaneous reconnaissance across 24 OSINT platforms, threat intel, vulnerability feeds, and search engines</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Language Switcher -->
+        <div class="lang-switcher">
+          <button type="button" class="lang-btn active" id="btn-lang-en" onclick="setLanguage('en')">🇺🇸 EN</button>
+          <button type="button" class="lang-btn" id="btn-lang-pt" onclick="setLanguage('pt')">🇧🇷 PT</button>
         </div>
       </div>
     </header>
@@ -656,7 +706,7 @@
     <!-- Host installation banner -->
     <div class="banner-install">
       <div>
-        💡 <strong>Instale no Host para disparo nativo:</strong> 
+        <span id="banner-install-text">💡 <strong>Install on Host for native launch:</strong></span> 
         <code class="banner-code">git clone https://github.com/Carlos-HDO/multi_search && cd multi_search && ./install.sh</code>
       </div>
       <a href="https://github.com/Carlos-HDO/multi_search" target="_blank" rel="noopener noreferrer" class="banner-github">
@@ -667,19 +717,19 @@
     <!-- Search Input & Quick Pivots -->
     <div class="panel">
       <div class="search-bar-wrap">
-        <input type="text" class="input-field search-input" id="query-input" placeholder="Digite o alvo OSINT: IP, Domínio, CVE, Carteira Crypto, Hash, Usuário, Handle ou String..." value="AWS_SECRET_ACCESS_KEY" oninput="handleQueryChange()">
-        <button type="button" class="btn btn-success" onclick="handleQueryChange()" style="min-width: 140px;">
-          👁️ Gerar Links
+        <input type="text" class="input-field search-input" id="query-input" placeholder="Enter OSINT target: IP, Domain, CVE, Crypto Wallet, Hash, Username, Handle, or String..." value="AWS_SECRET_ACCESS_KEY" oninput="handleQueryChange()">
+        <button type="button" class="btn btn-success" id="btn-generate-links" onclick="handleQueryChange()" style="min-width: 140px;">
+          👁️ Generate Links
         </button>
         <button type="button" class="btn btn-primary" id="btn-launch-top" onclick="triggerLaunch()" style="min-width: 170px;">
-          🚀 Abrir Todas as Abas
+          🚀 Open All Tabs
         </button>
       </div>
       <div class="quick-examples">
-        <span style="font-weight: 600;">EXEMPLOS RÁPIDOS:</span>
+        <span style="font-weight: 600;" id="label-quick-examples">QUICK EXAMPLES:</span>
         <span class="chip" onclick="setQueryExample('CVE-2024-3094', 'pentest')">🛡️ CVE-2024-3094</span>
         <span class="chip" onclick="setQueryExample('1.1.1.1', 'infra')">🌐 IP 1.1.1.1</span>
-        <span class="chip" onclick="setQueryExample('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'osint')">₿ Carteira BTC</span>
+        <span class="chip" onclick="setQueryExample('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'osint')">₿ Bitcoin Wallet</span>
         <span class="chip" onclick="setQueryExample('AWS_SECRET_ACCESS_KEY', 'code')">🔑 Secret Leak</span>
         <span class="chip" onclick="setQueryExample('ransomware leak', 'web')">📰 Ransomware Leak</span>
       </div>
@@ -687,8 +737,8 @@
 
     <!-- Section 1: Profile Selection -->
     <div class="section-title">
-      <span>1. Escolha o Perfil de Reconhecimento (-c / --category)</span>
-      <span style="font-size: 0.72rem; color: var(--text-muted);" id="active-profile-label">Perfil Ativo: <strong>💻 Código & Segredos Expostos</strong></span>
+      <span id="title-sec-1">1. Select Reconnaissance Profile (-c / --category)</span>
+      <span style="font-size: 0.72rem; color: var(--text-muted);" id="active-profile-label">Active Profile: <strong>💻 Code & Exposed Secrets</strong></span>
     </div>
     <div class="profiles-grid" id="profiles-container">
       <!-- Generated dynamically -->
@@ -698,16 +748,16 @@
     <div class="panel">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
         <div style="font-size: 0.85rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
-          <span>2. Plataformas Selecionadas</span>
-          <span class="chip" id="selected-count-badge" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); font-weight: 600;">3 de 24 ativas</span>
+          <span id="title-sec-2">2. Selected Platforms</span>
+          <span class="chip" id="selected-count-badge" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); font-weight: 600;">3 of 24 active</span>
         </div>
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-          <button type="button" class="btn btn-success btn-sm" onclick="openAddEngineModal()">
-            ➕ Nova Plataforma
+          <button type="button" class="btn btn-success btn-sm" id="btn-add-engine" onclick="openAddEngineModal()">
+            ➕ New Platform
           </button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllEngines()">Marcar Todas</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="clearAllEngines()">Desmarcar Todas</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="confirmResetCatalog()">↺ Restaurar Padrões</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-select-all" onclick="selectAllEngines()">Select All</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-all" onclick="clearAllEngines()">Deselect All</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-catalog" onclick="confirmResetCatalog()">↺ Restore Defaults</button>
         </div>
       </div>
       <div class="engines-grid" id="engines-container">
@@ -718,26 +768,20 @@
     <!-- Section 3: Browser & Host CLI Parameters -->
     <div class="panel">
       <div class="section-title">
-        <span>3. Parâmetros de Disparo no Host & Comando CLI Equivalente</span>
+        <span id="title-sec-3">3. Host Dispatch Parameters & Equivalent CLI Command</span>
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
         <div>
-          <label for="browser-select" class="form-label">🌐 Navegador Alvo (Host / Flatpak):</label>
+          <label for="browser-select" class="form-label" id="label-browser-select">🌐 Target Browser (Host / Flatpak):</label>
           <select class="select-field" id="browser-select" onchange="updateCliCommand()">
             <!-- Populated from detected browsers -->
           </select>
         </div>
         <div>
-          <label for="delay-select" class="form-label">⏱️ Intervalo entre Abas (Delay):</label>
+          <label for="delay-select" class="form-label" id="label-delay-select">⏱️ Tab Interval (Delay):</label>
           <div style="display: flex; align-items: center; gap: 0.35rem;">
             <select class="select-field" id="delay-select" onchange="handleDelayChange()" style="flex: 1;">
-              <option value="300">0.3s (Rápido)</option>
-              <option value="600" selected>0.6s (Balanceado)</option>
-              <option value="1200">1.2s (Protegido)</option>
-              <option value="2000">2.0s (Maior Diminuição de Bloqueios)</option>
-              <option value="3000">3.0s (Evasão Alta / 3s)</option>
-              <option value="5000">5.0s (Evasão Máxima / 5s)</option>
-              <option value="custom">✏️ Personalizado...</option>
+              <!-- Generated with i18n -->
             </select>
             <div id="delay-custom-box" style="display: none; align-items: center; gap: 3px;">
               <input type="number" id="delay-custom-input" class="input-field" min="0.1" max="60" step="0.5" value="3.0" style="padding: 0.35rem 0.5rem; font-size: 0.78rem; width: 65px;" oninput="updateCliCommand()">
@@ -748,13 +792,13 @@
         <div style="display: flex; flex-direction: column; justify-content: center; gap: 6px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
             <label style="font-size: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0;">
-              <input type="checkbox" id="chk-private" checked onchange="updateCliCommand()"> 🕵️ Modo Privado / Incógnito (-p)
+              <input type="checkbox" id="chk-private" checked onchange="updateCliCommand()"> <span id="label-chk-private">🕵️ Private / Incognito Mode (-p)</span>
             </label>
             <button type="button" class="btn btn-secondary btn-sm" onclick="openInfoModal('private')" style="padding: 1px 6px; font-size: 0.65rem; border-radius: 9999px;">ℹ️ Info</button>
           </div>
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
             <label style="font-size: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; margin: 0;">
-              <input type="checkbox" id="chk-human" checked onchange="updateCliCommand()"> 👤 Simulação Humana com Jitter (-H)
+              <input type="checkbox" id="chk-human" checked onchange="updateCliCommand()"> <span id="label-chk-human">👤 Human Simulation with Jitter (-H)</span>
             </label>
             <button type="button" class="btn btn-secondary btn-sm" onclick="openInfoModal('human')" style="padding: 1px 6px; font-size: 0.65rem; border-radius: 9999px;">ℹ️ Info</button>
           </div>
@@ -763,11 +807,11 @@
 
       <!-- CLI Command Preview Box -->
       <div>
-        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px;">💻 Comando CLI Equivalente para Terminal Host (msearch):</div>
+        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px;" id="label-cli-box">💻 Equivalent CLI Command for Host Terminal (msearch):</div>
         <div class="cli-box">
           <span id="cli-command-text">msearch -c code -p -H "AWS_SECRET_ACCESS_KEY"</span>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="copyCliCommand()">
-            📋 Copiar Comando
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-cli" onclick="copyCliCommand()">
+            📋 Copy Command
           </button>
         </div>
       </div>
@@ -777,12 +821,12 @@
     <div class="panel">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
         <div style="font-size: 0.85rem; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
-          <span>4. Plataformas e Links Gerados</span>
-          <button type="button" class="btn btn-primary btn-sm" onclick="triggerLaunch()">
-            🚀 Abrir Todas as Abas
+          <span id="title-sec-4">4. Generated Platforms & Links</span>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-launch-bottom" onclick="triggerLaunch()">
+            🚀 Open All Tabs
           </button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="copyAllUrls()">
-            📋 Copiar Todos os URLs
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-urls" onclick="copyAllUrls()">
+            📋 Copy All URLs
           </button>
         </div>
         <div id="launch-status" style="font-size: 0.75rem; color: var(--accent-cyan);"></div>
@@ -798,63 +842,63 @@
   <div class="modal-overlay" id="modal-engine">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="modal-engine-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">➕ Cadastrar Nova Plataforma</h3>
+        <h3 id="modal-engine-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">➕ Add New Platform</h3>
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeEngineModal()">✕</button>
       </div>
       <form id="form-engine" onsubmit="handleSaveEngine(event)">
         <input type="hidden" id="form-original-key" value="">
         <div class="modal-body">
           <div class="form-group">
-            <label class="form-label">Nome de Exibição <span style="color: var(--accent-rose);">*</span></label>
+            <label class="form-label" id="label-form-name">Display Name <span style="color: var(--accent-rose);">*</span></label>
             <input type="text" class="input-field" id="form-name" required placeholder="Ex: Censys, AlienVault OTX, AbuseIPDB, FOFA" oninput="handleNameInput()">
           </div>
           <div class="form-group">
-            <label class="form-label">Identificador Único (Key) <span style="color: var(--accent-rose);">*</span></label>
+            <label class="form-label" id="label-form-key">Unique Identifier (Key) <span style="color: var(--accent-rose);">*</span></label>
             <input type="text" class="input-field" id="form-key" required placeholder="Ex: censys, otx, abuseipdb" style="font-family: var(--font-mono); font-size: 0.8rem;">
           </div>
           <div class="form-group">
-            <label class="form-label">Modelo de URL (com {q}) <span style="color: var(--accent-rose);">*</span></label>
+            <label class="form-label" id="label-form-url">URL Template (with {q}) <span style="color: var(--accent-rose);">*</span></label>
             <input type="text" class="input-field" id="form-url" required placeholder="Ex: https://search.censys.io/hosts?q={q}" style="font-family: var(--font-mono); font-size: 0.8rem;">
-            <span class="form-hint">O termo digitado substituirá <strong>{q}</strong> na URL.</span>
+            <span class="form-hint" id="hint-form-url">The query term will replace <strong>{q}</strong> in the URL.</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Tag de Categoria Visual</label>
+            <label class="form-label" id="label-form-tag">Visual Category Tag</label>
             <select class="select-field" id="form-tag">
-              <option value="infra">infra (Infraestrutura / Redes / Threat Intel)</option>
-              <option value="osint">osint (OSINT Pessoas / Leaks / Entidades)</option>
+              <option value="infra">infra (Infrastructure / Network / Threat Intel)</option>
+              <option value="osint">osint (OSINT People / Leaks / Entities)</option>
               <option value="pentest">pentest (Pentest / Exploits / CVEs)</option>
-              <option value="code">code (Código / Secrets / Repositórios)</option>
-              <option value="archive">archive (Arquivos / Caches Históricos)</option>
-              <option value="web">web (Web Geral / Motores Independentes)</option>
+              <option value="code">code (Code / Secrets / Repositories)</option>
+              <option value="archive">archive (Archives / Historical Caches)</option>
+              <option value="web">web (General Web / Search Engines)</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Vincular aos Perfis de Reconhecimento:</label>
+            <label class="form-label" id="label-form-profiles">Associate with Reconnaissance Profiles:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; background: rgba(0,0,0,0.25); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-osint" value="osint"> 🕵️ OSINT & Pessoas/Entidades
+                <input type="checkbox" id="cat-osint" value="osint"> <span id="label-cat-osint">🕵️ OSINT & People/Entities</span>
               </label>
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-infra" value="infra"> 📡 Infraestrutura & Threat Intel
+                <input type="checkbox" id="cat-infra" value="infra"> <span id="label-cat-infra">📡 Infrastructure & Threat Intel</span>
               </label>
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-pentest" value="pentest"> 💣 Pentest, Exploits & CVEs
+                <input type="checkbox" id="cat-pentest" value="pentest"> <span id="label-cat-pentest">💣 Pentest, Exploits & CVEs</span>
               </label>
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-code" value="code"> 💻 Código & Segredos Expostos
+                <input type="checkbox" id="cat-code" value="code"> <span id="label-cat-code">💻 Code & Exposed Secrets</span>
               </label>
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-archive" value="archive"> 🏛️ Arquivos & Caches Históricos
+                <input type="checkbox" id="cat-archive" value="archive"> <span id="label-cat-archive">🏛️ Archives & Historical Caches</span>
               </label>
               <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-                <input type="checkbox" id="cat-web" value="web"> 🌐 Web Geral
+                <input type="checkbox" id="cat-web" value="web"> <span id="label-cat-web">🌐 General Web</span>
               </label>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="closeEngineModal()">Cancelar</button>
-          <button type="submit" class="btn btn-success btn-sm">Salvar Plataforma</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-modal-cancel" onclick="closeEngineModal()">Cancel</button>
+          <button type="submit" class="btn btn-success btn-sm" id="btn-modal-save">Save Platform</button>
         </div>
       </form>
     </div>
@@ -864,12 +908,12 @@
   <div class="modal-overlay" id="modal-info">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="modal-info-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">ℹ️ Detalhes</h3>
+        <h3 id="modal-info-title" style="font-size: 0.95rem; font-weight: 600; color: #ffffff;">ℹ️ Details</h3>
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeInfoModal()">✕</button>
       </div>
       <div class="modal-body" id="modal-info-body" style="font-size: 0.82rem; line-height: 1.5; color: var(--text-main);"></div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary btn-sm" onclick="closeInfoModal()">Entendido</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-info-close" onclick="closeInfoModal()">Understood</button>
       </div>
     </div>
   </div>
@@ -877,8 +921,147 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Frontend Logic -->
+  <!-- Frontend Logic & i18n -->
   <script>
+    const I18N = {
+      en: {
+        brandTitle: "Multi-Search OSINT & Clear Web Recon Hub",
+        brandSubtitle: "Manual investigation and simultaneous reconnaissance across 24 OSINT platforms, threat intel, vulnerability feeds, and search engines",
+        bannerInstall: "💡 <strong>Install on Host for native launch:</strong>",
+        queryPlaceholder: "Enter OSINT target: IP, Domain, CVE, Crypto Wallet, Hash, Username, Handle, or String...",
+        btnGenerateLinks: "👁️ Generate Links",
+        btnOpenAllTabs: "🚀 Open All Tabs",
+        quickExamplesLabel: "QUICK EXAMPLES:",
+        sec1Title: "1. Select Reconnaissance Profile (-c / --category)",
+        activeProfilePrefix: "Active Profile: ",
+        sec2Title: "2. Selected Platforms",
+        activeCountSuffix: "active",
+        btnNewPlatform: "➕ New Platform",
+        btnSelectAll: "Select All",
+        btnClearAll: "Deselect All",
+        btnRestoreDefaults: "↺ Restore Defaults",
+        sec3Title: "3. Host Dispatch Parameters & Equivalent CLI Command",
+        labelBrowser: "🌐 Target Browser (Host / Flatpak):",
+        labelDelay: "⏱️ Tab Interval (Delay):",
+        delays: {
+          "300": "0.3s (Fast)",
+          "600": "0.6s (Balanced)",
+          "1200": "1.2s (Protected)",
+          "2000": "2.0s (Reduced Rate-Limits)",
+          "3000": "3.0s (High Evasion / 3s)",
+          "5000": "5.0s (Max Evasion / 5s)",
+          "custom": "✏️ Custom..."
+        },
+        chkPrivate: "🕵️ Private / Incognito Mode (-p)",
+        chkHuman: "👤 Human Simulation with Jitter (-H)",
+        labelCliBox: "💻 Equivalent CLI Command for Host Terminal (msearch):",
+        btnCopyCli: "📋 Copy Command",
+        sec4Title: "4. Generated Platforms & Links",
+        btnCopyUrls: "📋 Copy All URLs",
+        btnCopyLink: "📋 Copy",
+        btnOpenTab: "🚀 Open Tab ↗",
+        noEnginesSelected: "No platforms selected. Check platforms above to generate links.",
+        launchingMsg: "Launching {count} tabs in host browser...",
+        launchToast: "🚀 Launching {count} tabs on host (Mode: {mode})...",
+        copiedToast: "Copied to clipboard!",
+        modalAddTitle: "➕ Add New Platform",
+        modalEditTitle: "✏️ Edit Platform ({name})",
+        labelFormName: "Display Name",
+        labelFormKey: "Unique Identifier (Key)",
+        labelFormUrl: "URL Template (with {q})",
+        hintFormUrl: "The query term will replace <strong>{q}</strong> in the URL.",
+        labelFormTag: "Visual Category Tag",
+        labelFormProfiles: "Associate with Reconnaissance Profiles:",
+        btnModalCancel: "Cancel",
+        btnModalSave: "Save Platform",
+        btnInfoClose: "Understood",
+        confirmDelete: "Remove platform \"{name}\" ({key}) from catalog?",
+        confirmReset: "Restore factory default 24 platforms and categories?",
+        resetSuccess: "Default catalog restored successfully!",
+        saveSuccess: "Platform \"{name}\" saved successfully!",
+        removedSuccess: "Platform \"{name}\" removed.",
+        defaultSuffix: " (Default)",
+        enginesSuffix: "engines",
+        categories: {
+          osint: { title: "OSINT & People/Entities", desc: "Deep investigations, dumps, archives, leak pastes, and footprints" },
+          infra: { title: "Infrastructure & Threat Intel", desc: "Port reconnaissance, TLS certs, domains, and malicious IPs" },
+          pentest: { title: "Pentest, Exploits & CVEs", desc: "Vulnerability databases, PoCs, advisories, and exploits" },
+          code: { title: "Code & Exposed Secrets", desc: "Public repositories, API key hunting, and developer footprints" },
+          archive: { title: "Archives & Historical Caches", desc: "Temporal snapshots and recovery of deleted pages" },
+          web: { title: "General Web", desc: "Neutral multi-index search across independent search engines" },
+          all: { title: "Full Sweep (All Platforms)", desc: "Simultaneous sweep across all 24 integrated platforms" }
+        }
+      },
+      pt: {
+        brandTitle: "Multi-Search OSINT & Clear Web Recon Hub",
+        brandSubtitle: "Investigação manual e reconhecimento simultâneo em 24 plataformas OSINT, ameaças, vulnerabilidades e motores de busca",
+        bannerInstall: "💡 <strong>Instale no Host para disparo nativo:</strong>",
+        queryPlaceholder: "Digite o alvo OSINT: IP, Domínio, CVE, Carteira Crypto, Hash, Usuário, Handle ou String...",
+        btnGenerateLinks: "👁️ Gerar Links",
+        btnOpenAllTabs: "🚀 Abrir Todas as Abas",
+        quickExamplesLabel: "EXEMPLOS RÁPIDOS:",
+        sec1Title: "1. Escolha o Perfil de Reconhecimento (-c / --category)",
+        activeProfilePrefix: "Perfil Ativo: ",
+        sec2Title: "2. Plataformas Selecionadas",
+        activeCountSuffix: "ativas",
+        btnNewPlatform: "➕ Nova Plataforma",
+        btnSelectAll: "Marcar Todas",
+        btnClearAll: "Desmarcar Todas",
+        btnRestoreDefaults: "↺ Restaurar Padrões",
+        sec3Title: "3. Parâmetros de Disparo no Host & Comando CLI Equivalente",
+        labelBrowser: "🌐 Navegador Alvo (Host / Flatpak):",
+        labelDelay: "⏱️ Intervalo entre Abas (Delay):",
+        delays: {
+          "300": "0.3s (Rápido)",
+          "600": "0.6s (Balanceado)",
+          "1200": "1.2s (Protegido)",
+          "2000": "2.0s (Maior Diminuição de Bloqueios)",
+          "3000": "3.0s (Evasão Alta / 3s)",
+          "5000": "5.0s (Evasão Máxima / 5s)",
+          "custom": "✏️ Personalizado..."
+        },
+        chkPrivate: "🕵️ Modo Privado / Incógnito (-p)",
+        chkHuman: "👤 Simulação Humana com Jitter (-H)",
+        labelCliBox: "💻 Comando CLI Equivalente para Terminal Host (msearch):",
+        btnCopyCli: "📋 Copiar Comando",
+        sec4Title: "4. Plataformas e Links Gerados",
+        btnCopyUrls: "📋 Copiar Todos os URLs",
+        btnCopyLink: "📋 Copiar",
+        btnOpenTab: "🚀 Abrir Aba ↗",
+        noEnginesSelected: "Nenhuma plataforma selecionada. Marque plataformas acima para gerar links.",
+        launchingMsg: "Disparando {count} abas no navegador host...",
+        launchToast: "🚀 Disparando {count} abas no host (Modo: {mode})...",
+        copiedToast: "Copiado para a área de transferência!",
+        modalAddTitle: "➕ Cadastrar Nova Plataforma",
+        modalEditTitle: "✏️ Editar Plataforma ({name})",
+        labelFormName: "Nome de Exibição",
+        labelFormKey: "Identificador Único (Key)",
+        labelFormUrl: "Modelo de URL (com {q})",
+        hintFormUrl: "O termo digitado substituirá <strong>{q}</strong> na URL.",
+        labelFormTag: "Tag de Categoria Visual",
+        labelFormProfiles: "Vincular aos Perfis de Reconhecimento:",
+        btnModalCancel: "Cancelar",
+        btnModalSave: "Salvar Plataforma",
+        btnInfoClose: "Entendido",
+        confirmDelete: "Deseja remover a plataforma \"{name}\" ({key}) do catálogo?",
+        confirmReset: "Deseja restaurar as 24 plataformas e categorias originais de fábrica?",
+        resetSuccess: "Catálogo padrão restaurado com sucesso!",
+        saveSuccess: "Plataforma \"{name}\" salva com sucesso!",
+        removedSuccess: "Plataforma \"{name}\" removida.",
+        defaultSuffix: " (Padrão)",
+        enginesSuffix: "engines",
+        categories: {
+          osint: { title: "OSINT & Pessoas/Entidades", desc: "Investigação profunda, dumps, arquivos e footprints" },
+          infra: { title: "Infraestrutura & Threat Intel", desc: "Reconhecimento de portas, TLS, domínios e IPs maliciosos" },
+          pentest: { title: "Pentest, Exploits & CVEs", desc: "Bases de vulnerabilidades, PoCs, advisories e exploits" },
+          code: { title: "Código & Segredos Expostos", desc: "Repositórios públicos, chaves de API e footprints" },
+          archive: { title: "Arquivos & Caches Históricos", desc: "Snapshots temporais e recuperação de páginas deletadas" },
+          web: { title: "Web Geral", desc: "Busca multi-index neutra em motores independentes" },
+          all: { title: "Full Sweep (Todas as Plataformas)", desc: "Varredura simultânea em todas as 24 plataformas integradas" }
+        }
+      }
+    };
+
     const DEFAULT_CATALOG = {
       engines: [
         { name: "Google", key: "google", url_template: "https://www.google.com/search?q={q}", category_tag: "web" },
@@ -908,45 +1091,31 @@
       ],
       categories: {
         osint: {
-          title: "OSINT & Pessoas/Entidades",
           icon: "🕵️",
-          description: "Investigação profunda, dumps, arquivos e footprints",
           engines: ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"]
         },
         infra: {
-          title: "Infraestrutura & Threat Intel",
           icon: "📡",
-          description: "Reconhecimento de portas, TLS, domínios e IPs maliciosos",
           engines: ["shodan", "urlscan", "virustotal", "intelx"]
         },
         pentest: {
-          title: "Pentest, Exploits & CVEs",
           icon: "💣",
-          description: "Bases de vulnerabilidades, PoCs, advisories e exploits",
           engines: ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"]
         },
         code: {
-          title: "Código & Segredos Expostos",
           icon: "💻",
-          description: "Repositórios públicos, chaves de API e footprints",
           engines: ["github", "grepapp", "google"]
         },
         archive: {
-          title: "Arquivos & Caches Históricos",
           icon: "🏛️",
-          description: "Snapshots temporais e recuperação de páginas deletadas",
           engines: ["wayback", "archive-today"]
         },
         web: {
-          title: "Web Geral",
           icon: "🌐",
-          description: "Busca multi-index neutra em motores independentes",
           engines: ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"]
         },
         all: {
-          title: "Full Sweep (Todas as Plataformas)",
           icon: "⚡",
-          description: "Varredura simultânea em todas as 24 plataformas integradas",
           engines: ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity", "wayback", "archive-today", "intelx", "reddit", "github", "grepapp", "urlscan", "shodan", "virustotal", "exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"]
         }
       },
@@ -961,20 +1130,107 @@
     };
 
     let APP_STATE = {
+      lang: localStorage.getItem('msearch_lang') || 'en',
       config: JSON.parse(JSON.stringify(DEFAULT_CATALOG)),
       activeCategory: 'code',
       selectedEngines: new Set(DEFAULT_CATALOG.categories.code.engines),
       generatedLinks: []
     };
 
+    function t(key) {
+      const current = I18N[APP_STATE.lang] || I18N.en;
+      return current[key] || I18N.en[key] || key;
+    }
+
+    function setLanguage(lang) {
+      APP_STATE.lang = lang;
+      localStorage.setItem('msearch_lang', lang);
+      document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+
+      document.getElementById('btn-lang-en')?.classList.toggle('active', lang === 'en');
+      document.getElementById('btn-lang-pt')?.classList.toggle('active', lang === 'pt');
+
+      applyStaticTranslations();
+      renderDelays();
+      renderBrowsers();
+      renderProfiles();
+      selectCategory(APP_STATE.activeCategory);
+      renderEngines();
+      renderLinks();
+    }
+
+    function applyStaticTranslations() {
+      const txt = (id, str) => { const el = document.getElementById(id); if (el) el.innerHTML = str; };
+      const val = (id, attr, str) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, str); };
+
+      txt('brand-title', t('brandTitle'));
+      txt('brand-subtitle', t('brandSubtitle'));
+      txt('banner-install-text', t('bannerInstall'));
+      val('query-input', 'placeholder', t('queryPlaceholder'));
+      txt('btn-generate-links', t('btnGenerateLinks'));
+      txt('btn-launch-top', t('btnOpenAllTabs'));
+      txt('label-quick-examples', t('quickExamplesLabel'));
+      txt('title-sec-1', t('sec1Title'));
+      txt('title-sec-2', t('sec2Title'));
+      txt('btn-add-engine', t('btnNewPlatform'));
+      txt('btn-select-all', t('btnSelectAll'));
+      txt('btn-clear-all', t('btnClearAll'));
+      txt('btn-reset-catalog', t('btnRestoreDefaults'));
+      txt('title-sec-3', t('sec3Title'));
+      txt('label-browser-select', t('labelBrowser'));
+      txt('label-delay-select', t('labelDelay'));
+      txt('label-chk-private', t('chkPrivate'));
+      txt('label-chk-human', t('chkHuman'));
+      txt('label-cli-box', t('labelCliBox'));
+      txt('btn-copy-cli', t('btnCopyCli'));
+      txt('title-sec-4', t('sec4Title'));
+      txt('btn-launch-bottom', t('btnOpenAllTabs'));
+      txt('btn-copy-urls', t('btnCopyUrls'));
+
+      // Modals
+      txt('label-form-name', `${t('labelFormName')} <span style="color: var(--accent-rose);">*</span>`);
+      txt('label-form-key', `${t('labelFormKey')} <span style="color: var(--accent-rose);">*</span>`);
+      txt('label-form-url', `${t('labelFormUrl')} <span style="color: var(--accent-rose);">*</span>`);
+      txt('hint-form-url', t('hintFormUrl'));
+      txt('label-form-tag', t('labelFormTag'));
+      txt('label-form-profiles', t('labelFormProfiles'));
+      txt('btn-modal-cancel', t('btnModalCancel'));
+      txt('btn-modal-save', t('btnModalSave'));
+      txt('btn-info-close', t('btnInfoClose'));
+
+      const cats = (I18N[APP_STATE.lang] || I18N.en).categories;
+      txt('label-cat-osint', `🕵️ ${cats.osint.title}`);
+      txt('label-cat-infra', `📡 ${cats.infra.title}`);
+      txt('label-cat-pentest', `💣 ${cats.pentest.title}`);
+      txt('label-cat-code', `💻 ${cats.code.title}`);
+      txt('label-cat-archive', `🏛️ ${cats.archive.title}`);
+      txt('label-cat-web', `🌐 ${cats.web.title}`);
+    }
+
+    function renderDelays() {
+      const select = document.getElementById('delay-select');
+      if (!select) return;
+      const curVal = select.value || '600';
+      const d = (I18N[APP_STATE.lang] || I18N.en).delays;
+      select.innerHTML = `
+        <option value="300" ${curVal === '300' ? 'selected' : ''}>${d['300']}</option>
+        <option value="600" ${curVal === '600' ? 'selected' : ''}>${d['600']}</option>
+        <option value="1200" ${curVal === '1200' ? 'selected' : ''}>${d['1200']}</option>
+        <option value="2000" ${curVal === '2000' ? 'selected' : ''}>${d['2000']}</option>
+        <option value="3000" ${curVal === '3000' ? 'selected' : ''}>${d['3000']}</option>
+        <option value="5000" ${curVal === '5000' ? 'selected' : ''}>${d['5000']}</option>
+        <option value="custom" ${curVal === 'custom' ? 'selected' : ''}>${d['custom']}</option>
+      `;
+    }
+
     async function loadConfig() {
-      // 1. Initial immediate render with robust defaults
+      applyStaticTranslations();
+      renderDelays();
       renderBrowsers();
       renderProfiles();
       selectCategory(APP_STATE.activeCategory);
       handleQueryChange();
 
-      // 2. Fetch active server state
       try {
         const res = await fetch('/api/config');
         if (res.ok) {
@@ -988,7 +1244,7 @@
           }
         }
       } catch (err) {
-        console.warn('Usando catálogo padrão offline:', err);
+        console.warn('Using local catalog:', err);
       }
     }
 
@@ -998,31 +1254,41 @@
       const browsers = APP_STATE.config.installed_browsers || DEFAULT_CATALOG.installed_browsers;
       let html = '';
       browsers.forEach(b => {
-        const def = b.is_default ? ' (Padrão)' : '';
+        const def = b.is_default ? t('defaultSuffix') : '';
         html += `<option value="${escapeHtml(b.alias)}" ${b.is_default ? 'selected' : ''}>🌐 ${escapeHtml(b.name)} [${b.btype}]${def}</option>`;
       });
       select.innerHTML = html;
     }
 
+    function getCategoryMeta(catKey) {
+      const i18nCats = (I18N[APP_STATE.lang] || I18N.en).categories;
+      const base = (APP_STATE.config.categories || DEFAULT_CATALOG.categories)[catKey] || {};
+      const localized = i18nCats[catKey] || {};
+      return {
+        icon: base.icon || '🔍',
+        title: localized.title || base.title || catKey,
+        description: localized.desc || base.description || '',
+        engines: base.engines || []
+      };
+    }
+
     function renderProfiles() {
       const container = document.getElementById('profiles-container');
       if (!container) return;
-      const cats = APP_STATE.config.categories || DEFAULT_CATALOG.categories;
-      let html = '';
       const ordered = ['osint', 'infra', 'pentest', 'code', 'archive', 'web', 'all'];
+      let html = '';
 
       ordered.forEach(catKey => {
-        const c = cats[catKey];
-        if (!c) return;
+        const c = getCategoryMeta(catKey);
         const isActive = APP_STATE.activeCategory === catKey ? 'active' : '';
         const count = c.engines ? c.engines.length : 0;
         html += `
           <div class="profile-card ${isActive}" onclick="selectCategory('${catKey}')" id="card-cat-${catKey}">
             <div class="profile-header">
               <div class="profile-title">
-                <span>${c.icon || '🔍'}</span> ${escapeHtml(c.title)}
+                <span>${c.icon}</span> ${escapeHtml(c.title)}
               </div>
-              <span class="profile-badge">${count} engines</span>
+              <span class="profile-badge">${count} ${t('enginesSuffix')}</span>
             </div>
             <div class="profile-desc">${escapeHtml(c.description)}</div>
           </div>
@@ -1037,13 +1303,13 @@
       const activeEl = document.getElementById(`card-cat-${catKey}`);
       if (activeEl) activeEl.classList.add('active');
 
-      const catInfo = (APP_STATE.config.categories || DEFAULT_CATALOG.categories)[catKey];
+      const catInfo = getCategoryMeta(catKey);
       const activeLabel = document.getElementById('active-profile-label');
-      if (activeLabel && catInfo) {
-        activeLabel.innerHTML = `Perfil Ativo: <strong>${catInfo.icon || ''} ${escapeHtml(catInfo.title)}</strong>`;
+      if (activeLabel) {
+        activeLabel.innerHTML = `${t('activeProfilePrefix')}<strong>${catInfo.icon} ${escapeHtml(catInfo.title)}</strong>`;
       }
 
-      APP_STATE.selectedEngines = new Set(catInfo ? catInfo.engines : []);
+      APP_STATE.selectedEngines = new Set(catInfo.engines || []);
       renderEngines();
       updateCliCommand();
       renderLinks();
@@ -1065,8 +1331,8 @@
             </label>
             <span class="engine-tag ${eng.category_tag}">${eng.category_tag}</span>
             <div class="engine-actions">
-              <button type="button" class="engine-btn" onclick="openEditEngineModal('${eng.key}', event)" title="Editar plataforma">✏️</button>
-              <button type="button" class="engine-btn delete" onclick="confirmDeleteEngine('${eng.key}', event)" title="Remover plataforma">✕</button>
+              <button type="button" class="engine-btn" onclick="openEditEngineModal('${eng.key}', event)" title="${APP_STATE.lang === 'pt' ? 'Editar' : 'Edit'}">✏️</button>
+              <button type="button" class="engine-btn delete" onclick="confirmDeleteEngine('${eng.key}', event)" title="${APP_STATE.lang === 'pt' ? 'Remover' : 'Delete'}">✕</button>
             </div>
           </div>
         `;
@@ -1108,7 +1374,8 @@
       const badge = document.getElementById('selected-count-badge');
       if (badge) {
         const total = (APP_STATE.config.engines || DEFAULT_CATALOG.engines).length;
-        badge.textContent = `${APP_STATE.selectedEngines.size} de ${total} ativas`;
+        const s = APP_STATE.lang === 'pt' ? 'de' : 'of';
+        badge.textContent = `${APP_STATE.selectedEngines.size} ${s} ${total} ${t('activeCountSuffix')}`;
       }
     }
 
@@ -1129,7 +1396,7 @@
     }
 
     function updateCliCommand() {
-      const query = (document.getElementById('query-input')?.value || '').trim() || 'termo_alvo';
+      const query = (document.getElementById('query-input')?.value || '').trim() || 'target_query';
       const browser = document.getElementById('browser-select')?.value || 'librewolf';
       const delayMs = getDelayMs();
       const isPrivate = document.getElementById('chk-private')?.checked;
@@ -1184,7 +1451,7 @@
       if (APP_STATE.generatedLinks.length === 0) {
         container.innerHTML = `
           <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 3rem;">
-            Nenhuma plataforma selecionada. Marque plataformas acima para gerar links.
+            ${t('noEnginesSelected')}
           </div>
         `;
         return;
@@ -1200,8 +1467,8 @@
             </div>
             <div class="link-url" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="copyText('${escapeHtml(item.url)}')">📋 Copiar</button>
-              <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">🚀 Abrir Aba ↗</a>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="copyText('${escapeHtml(item.url)}')">${t('btnCopyLink')}</button>
+              <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">${t('btnOpenTab')}</a>
             </div>
           </div>
         `;
@@ -1212,30 +1479,32 @@
     async function triggerLaunch() {
       const query = (document.getElementById('query-input')?.value || '').trim();
       if (!query) {
-        showToast('Digite um termo de pesquisa antes de disparar.', 'info');
+        showToast(APP_STATE.lang === 'pt' ? 'Digite um termo de pesquisa antes de disparar.' : 'Please enter a search query before launching.', 'info');
         document.getElementById('query-input')?.focus();
         return;
       }
 
       const engines = Array.from(APP_STATE.selectedEngines);
       if (engines.length === 0) {
-        showToast('Nenhuma plataforma selecionada para disparo.', 'error');
+        showToast(APP_STATE.lang === 'pt' ? 'Nenhuma plataforma selecionada para disparo.' : 'No platforms selected for launch.', 'error');
         return;
       }
 
+      const isPrivate = document.getElementById('chk-private')?.checked || false;
       const payload = {
         query: query,
         category: APP_STATE.activeCategory,
         browser: document.getElementById('browser-select')?.value || '',
         engines: engines,
-        private: document.getElementById('chk-private')?.checked || false,
+        private: isPrivate,
         human: document.getElementById('chk-human')?.checked || false,
         delay: getDelayMs() / 1000
       };
 
+      const modeLabel = isPrivate ? (APP_STATE.lang === 'pt' ? 'Privado' : 'Private') : (APP_STATE.lang === 'pt' ? 'Padrão' : 'Standard');
       const statusEl = document.getElementById('launch-status');
-      if (statusEl) statusEl.textContent = `🚀 Disparando ${engines.length} abas no navegador host...`;
-      showToast(`🚀 Disparando ${engines.length} abas no host (Modo: ${payload.private ? 'Privado' : 'Padrão'})...`, 'info');
+      if (statusEl) statusEl.textContent = t('launchingMsg').replace('{count}', engines.length);
+      showToast(t('launchToast').replace('{count}', engines.length).replace('{mode}', modeLabel), 'info');
 
       try {
         const res = await fetch('/api/launch', {
@@ -1245,13 +1514,13 @@
         });
         if (res.ok) {
           const data = await res.json();
-          showToast(`✨ ${data.message || 'Buscas iniciadas com sucesso no host!'}`, 'success');
-          if (statusEl) statusEl.textContent = '✅ Disparo concluído com sucesso no SO!';
+          showToast(`✨ ${data.message || (APP_STATE.lang === 'pt' ? 'Buscas iniciadas com sucesso no host!' : 'Searches successfully dispatched on host!')}`, 'success');
+          if (statusEl) statusEl.textContent = APP_STATE.lang === 'pt' ? '✅ Disparo concluído com sucesso no SO!' : '✅ Launch dispatched successfully in OS!';
         } else {
-          showToast('Erro ao disparar processo no host.', 'error');
+          showToast(APP_STATE.lang === 'pt' ? 'Erro ao disparar processo no host.' : 'Error launching process on host.', 'error');
         }
       } catch (err) {
-        showToast('Falha na comunicação com o servidor local.', 'error');
+        showToast(APP_STATE.lang === 'pt' ? 'Falha na comunicação com o servidor local.' : 'Failed to communicate with local server.', 'error');
       }
     }
 
@@ -1262,7 +1531,7 @@
 
     function copyAllUrls() {
       if (!APP_STATE.generatedLinks || APP_STATE.generatedLinks.length === 0) {
-        showToast('Nenhum link gerado para copiar.', 'info');
+        showToast(APP_STATE.lang === 'pt' ? 'Nenhum link gerado para copiar.' : 'No generated links to copy.', 'info');
         return;
       }
       const urls = APP_STATE.generatedLinks.map(l => l.url).join('\n');
@@ -1271,7 +1540,7 @@
 
     function copyText(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => showToast('Copiado para a área de transferência!', 'success'));
+        navigator.clipboard.writeText(text).then(() => showToast(t('copiedToast'), 'success'));
       } else {
         const el = document.createElement('textarea');
         el.value = text;
@@ -1279,13 +1548,13 @@
         el.select();
         document.execCommand('copy');
         document.body.removeChild(el);
-        showToast('Copiado para a área de transferência!', 'success');
+        showToast(t('copiedToast'), 'success');
       }
     }
 
     /* Modal Operations */
     function openAddEngineModal() {
-      document.getElementById('modal-engine-title').textContent = '➕ Cadastrar Nova Plataforma';
+      document.getElementById('modal-engine-title').textContent = t('modalAddTitle');
       document.getElementById('form-original-key').value = '';
       document.getElementById('form-name').value = '';
       document.getElementById('form-key').value = '';
@@ -1306,7 +1575,7 @@
       const eng = (APP_STATE.config.engines || DEFAULT_CATALOG.engines).find(e => e.key === key);
       if (!eng) return;
 
-      document.getElementById('modal-engine-title').textContent = `✏️ Editar Plataforma (${eng.name})`;
+      document.getElementById('modal-engine-title').textContent = t('modalEditTitle').replace('{name}', eng.name);
       document.getElementById('form-original-key').value = eng.key;
       document.getElementById('form-name').value = eng.name;
       document.getElementById('form-key').value = eng.key;
@@ -1344,7 +1613,7 @@
       const tag = document.getElementById('form-tag').value;
 
       if (!name || !key || !url) {
-        showToast('Preencha os campos obrigatórios.', 'error');
+        showToast(APP_STATE.lang === 'pt' ? 'Preencha os campos obrigatórios.' : 'Please fill all required fields.', 'error');
         return;
       }
       if (!url.includes('{q}')) {
@@ -1388,7 +1657,7 @@
       renderProfiles();
       renderEngines();
       renderLinks();
-      showToast(`Plataforma "${name}" salva com sucesso!`, 'success');
+      showToast(t('saveSuccess').replace('{name}', name), 'success');
     }
 
     async function confirmDeleteEngine(key, event) {
@@ -1396,7 +1665,8 @@
       const eng = (APP_STATE.config.engines || DEFAULT_CATALOG.engines).find(e => e.key === key);
       const name = eng ? eng.name : key;
 
-      if (!confirm(`Deseja remover a plataforma "${name}" (${key}) do catálogo?`)) return;
+      const promptMsg = t('confirmDelete').replace('{name}', name).replace('{key}', key);
+      if (!confirm(promptMsg)) return;
 
       APP_STATE.config.engines = (APP_STATE.config.engines || DEFAULT_CATALOG.engines).filter(e => e.key !== key);
       Object.values(APP_STATE.config.categories || DEFAULT_CATALOG.categories).forEach(cat => {
@@ -1408,25 +1678,25 @@
       renderProfiles();
       renderEngines();
       renderLinks();
-      showToast(`Plataforma "${name}" removida.`, 'info');
+      showToast(t('removedSuccess').replace('{name}', name), 'info');
     }
 
     async function confirmResetCatalog() {
-      if (!confirm('Deseja restaurar as 24 plataformas e categorias originais de fábrica?')) return;
+      if (!confirm(t('confirmReset'))) return;
       try {
         const res = await fetch('/api/reset', { method: 'POST' });
         if (res.ok) {
           APP_STATE.config = await res.json();
           selectCategory(APP_STATE.activeCategory);
-          showToast('Catálogo padrão restaurado com sucesso!', 'success');
+          showToast(t('resetSuccess'), 'success');
           return;
         }
       } catch (err) {
-        console.warn('Erro ao chamar /api/reset:', err);
+        console.warn('Error calling /api/reset:', err);
       }
       APP_STATE.config = JSON.parse(JSON.stringify(DEFAULT_CATALOG));
       selectCategory(APP_STATE.activeCategory);
-      showToast('Catálogo padrão restaurado localmente.', 'success');
+      showToast(t('resetSuccess'), 'success');
     }
 
     async function saveConfigToServer() {
@@ -1437,7 +1707,7 @@
           body: JSON.stringify(APP_STATE.config)
         });
       } catch (err) {
-        console.error('Erro ao salvar config no servidor:', err);
+        console.error('Error saving config to server:', err);
       }
     }
 
@@ -1447,31 +1717,61 @@
       if (!title || !body) return;
 
       if (type === 'private') {
-        title.innerHTML = '🕵️ Modo Privado / Incógnito (<code>-p</code>)';
-        body.innerHTML = `
-          <div style="margin-bottom: 0.75rem;">Abre todas as plataformas em uma <strong>janela anônima / privativa nativa</strong> no navegador host.</div>
-          <div style="background: rgba(6,182,212,0.08); border-left: 3px solid var(--accent-cyan); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
-            <strong>Vantagens OSINT:</strong>
-            <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
-              <li><strong>Zero rastro:</strong> Nenhum histórico, cookies ou cache salvos na sua máquina ao fechar.</li>
-              <li><strong>Isolamento de sessões:</strong> Não expõe suas contas pessoais (Google, Shodan, VirusTotal).</li>
-              <li><strong>Sem personalização:</strong> Resultados sem viés ou filtro de buscas anteriores.</li>
-            </ul>
-          </div>
-        `;
+        if (APP_STATE.lang === 'pt') {
+          title.innerHTML = '🕵️ Modo Privado / Incógnito (<code>-p</code>)';
+          body.innerHTML = `
+            <div style="margin-bottom: 0.75rem;">Abre todas as plataformas em uma <strong>janela anônima / privativa nativa</strong> no navegador host.</div>
+            <div style="background: rgba(6,182,212,0.08); border-left: 3px solid var(--accent-cyan); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+              <strong>Vantagens OSINT:</strong>
+              <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                <li><strong>Zero rastro:</strong> Nenhum histórico, cookies ou cache salvos na sua máquina ao fechar.</li>
+                <li><strong>Isolamento de sessões:</strong> Não expõe suas contas pessoais (Google, Shodan, VirusTotal).</li>
+                <li><strong>Sem personalização:</strong> Resultados sem viés ou filtro de buscas anteriores.</li>
+              </ul>
+            </div>
+          `;
+        } else {
+          title.innerHTML = '🕵️ Private / Incognito Mode (<code>-p</code>)';
+          body.innerHTML = `
+            <div style="margin-bottom: 0.75rem;">Opens all target search engines in a <strong>native private / incognito browsing window</strong> on the host OS.</div>
+            <div style="background: rgba(6,182,212,0.08); border-left: 3px solid var(--accent-cyan); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+              <strong>OSINT Investigation Benefits:</strong>
+              <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                <li><strong>Zero Local Footprint:</strong> Leaves no search history, cache, or persistent cookies after closing.</li>
+                <li><strong>Session Isolation:</strong> Prevents linking queries to personal logged-in accounts.</li>
+                <li><strong>Unbiased Results:</strong> Avoids personalized algorithmic search rank weighting.</li>
+              </ul>
+            </div>
+          `;
+        }
       } else if (type === 'human') {
-        title.innerHTML = '👤 Simulação Humana com Jitter (<code>-H</code>)';
-        body.innerHTML = `
-          <div style="margin-bottom: 0.75rem;">Aplica <strong>aleatoriedade nos intervalos (jitter)</strong> e embaralha a sequência de abertura dos motores.</div>
-          <div style="background: rgba(168,85,247,0.08); border-left: 3px solid var(--accent-purple); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
-            <strong>Proteção Anti-Bloqueio:</strong>
-            <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
-              <li><strong>Evasão de Anti-Bot / WAF:</strong> Evita acionar proteções Cloudflare e Akamai que barram dezenas de conexões instantâneas no mesmo milissegundo.</li>
-              <li><strong>Intervalos Orgânicos:</strong> Adiciona micro-variações no delay entre cada aba.</li>
-              <li><strong>Ordem Embaralhada:</strong> Evita assinaturas sequenciais previsíveis.</li>
-            </ul>
-          </div>
-        `;
+        if (APP_STATE.lang === 'pt') {
+          title.innerHTML = '👤 Simulação Humana com Jitter (<code>-H</code>)';
+          body.innerHTML = `
+            <div style="margin-bottom: 0.75rem;">Aplica <strong>aleatoriedade nos intervalos (jitter)</strong> e embaralha a sequência de abertura dos motores.</div>
+            <div style="background: rgba(168,85,247,0.08); border-left: 3px solid var(--accent-purple); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+              <strong>Proteção Anti-Bloqueio:</strong>
+              <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                <li><strong>Evasão de Anti-Bot / WAF:</strong> Evita acionar proteções Cloudflare e Akamai que barram dezenas de conexões instantâneas no mesmo milissegundo.</li>
+                <li><strong>Intervalos Orgânicos:</strong> Adiciona micro-variações no delay entre cada aba.</li>
+                <li><strong>Ordem Embaralhada:</strong> Evita assinaturas sequenciais previsíveis.</li>
+              </ul>
+            </div>
+          `;
+        } else {
+          title.innerHTML = '👤 Human Simulation with Jitter (<code>-H</code>)';
+          body.innerHTML = `
+            <div style="margin-bottom: 0.75rem;">Applies <strong>dynamic pacing jitter</strong> and shuffles tab opening sequence to emulate realistic organic browsing.</div>
+            <div style="background: rgba(168,85,247,0.08); border-left: 3px solid var(--accent-purple); padding: 0.75rem; border-radius: 0 4px 4px 0; margin-bottom: 0.75rem;">
+              <strong>Anti-Bot & WAF Defense:</strong>
+              <ul style="padding-left: 1.2rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                <li><strong>WAF Evasion:</strong> Prevents Cloudflare and Akamai threshold triggers caused by concurrent instant requests.</li>
+                <li><strong>Organic Jitter:</strong> Adds natural floating-point variations (1.0s-2.6s) between tabs.</li>
+                <li><strong>Shuffled Order:</strong> Disrupts fixed sequential request fingerprints.</li>
+              </ul>
+            </div>
+          `;
+        }
       }
       document.getElementById('modal-info').classList.add('active');
     }
@@ -1501,6 +1801,7 @@
 
     // Initialize immediately
     document.addEventListener('DOMContentLoaded', () => {
+      setLanguage(APP_STATE.lang);
       loadConfig();
       document.getElementById('modal-engine')?.addEventListener('click', (e) => {
         if (e.target.id === 'modal-engine') closeEngineModal();
