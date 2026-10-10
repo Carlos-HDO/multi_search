@@ -4,8 +4,13 @@
 Run with:  python3 -m unittest discover -s tests
 """
 
+import json
 import sys
+import threading
 import unittest
+import urllib.error
+import urllib.request
+from http.server import HTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -72,6 +77,69 @@ class ValidateBrowserTest(unittest.TestCase):
         self.assertIsNone(m.validate_requested_browser("/bin/bash"))
         self.assertIsNone(m.validate_requested_browser("rm -rf /"))
         self.assertIsNone(m.validate_requested_browser("totally-unknown-binary"))
+
+
+class ServerSecurityTest(unittest.TestCase):
+    """Integration tests that lock in the cross-origin / command-exec hardening.
+
+    Only rejection paths (403/400) and a plain GET are exercised, so no real
+    browser is ever spawned.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.httpd = HTTPServer(("127.0.0.1", 0), m.MultiSearchRequestHandler)
+        cls.port = cls.httpd.server_address[1]
+        cls.host = f"localhost:{cls.port}"
+        cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+
+    def _request(self, path, method="GET", headers=None, body=None):
+        url = f"http://127.0.0.1:{self.port}{path}"
+        data = body.encode("utf-8") if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Host", (headers or {}).get("Host", self.host))
+        for k, v in (headers or {}).items():
+            if k != "Host":
+                req.add_header(k, v)
+        try:
+            resp = urllib.request.urlopen(req, timeout=5)
+            return resp.status, resp.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode("utf-8")
+
+    def test_same_origin_get_serves_injected_catalog(self):
+        status, body = self._request("/", headers={"Origin": f"http://{self.host}"})
+        self.assertEqual(status, 200)
+        self.assertIn("__MSEARCH_DEFAULTS__", body)
+
+    def test_cross_origin_post_is_forbidden(self):
+        status, _ = self._request(
+            "/api/launch",
+            method="POST",
+            headers={"Origin": "https://evil.example", "Content-Type": "application/json"},
+            body=json.dumps({"query": "x", "engines": ["google"]}),
+        )
+        self.assertEqual(status, 403)
+
+    def test_foreign_host_is_forbidden(self):
+        status, _ = self._request("/api/config", headers={"Host": "attacker.com"})
+        self.assertEqual(status, 403)
+
+    def test_unknown_browser_is_rejected(self):
+        status, body = self._request(
+            "/api/launch",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"query": "x", "engines": ["google"], "browser": "sh -c 'id'"}),
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("error", body)
 
 
 if __name__ == "__main__":

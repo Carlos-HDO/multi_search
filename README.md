@@ -255,6 +255,28 @@ Any changes made via the Web UI are instantly available in both the Web UI and t
 
 ---
 
+## 🔒 Security Model
+
+The Web UI Command Center runs a small local server that can launch browsers on your machine, so it is locked to the host that started it:
+
+- Binds to `127.0.0.1` only (never exposed to the network).
+- Rejects (HTTP 403) any request with an external `Origin` (anti-CSRF) or a mismatched `Host` header (anti-DNS-rebinding), so other websites open in your browser cannot drive it.
+- The `/api/launch` endpoint only accepts a **known browser alias or an installed browser command** — arbitrary commands are refused (HTTP 400) and never reach the OS.
+
+---
+
+## 🧪 Testing
+
+The project ships a standard-library test suite (no external dependencies):
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+It covers the pure helpers (URL building, delay jitter bounds, alias/category resolution) and the security hardening (cross-origin rejection, DNS-rebinding rejection, and refusal of arbitrary browser commands).
+
+---
+
 ## 📄 License
 
 Distributed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0). Free and open source forever. Copyright (c) 2026 Carlos Dias.
