@@ -20,7 +20,7 @@ import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 CONFIG_DIR = Path.home() / ".config" / "multi_search"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -299,6 +299,31 @@ def resolve_browser(input_browser: str) -> tuple[list[str], bool]:
     return cmd_list, is_chrom
 
 
+def validate_requested_browser(browser_str: str | None) -> str | None:
+    """Validate an UNTRUSTED browser request coming from the HTTP API.
+
+    Only a recognized alias or the exact launcher command of an installed
+    browser is accepted. This prevents a malicious web page from coercing the
+    host into running an arbitrary binary through POST /api/launch (which hands
+    the value to subprocess). Returns a safe browser string, or None if the
+    request is not recognized. An empty request falls back to the default.
+    """
+    if not browser_str or not browser_str.strip():
+        return detect_default_browser()
+
+    low = browser_str.strip().lower()
+
+    for b in get_installed_browsers():
+        if low == b.alias.lower() or low == b.command.lower():
+            return b.alias
+
+    for _, alias, _bins, _flatpak_id, _is_chromium in KNOWN_BROWSERS:
+        if low == alias.lower():
+            return alias
+
+    return None
+
+
 def list_engines(cfg: dict | None = None) -> None:
     """Displays the list of supported search engines."""
     cfg = cfg or load_config()
@@ -475,16 +500,42 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args) -> None:
         pass  # Suppress default noisy console logs
 
+    def _is_trusted_request(self) -> bool:
+        """Reject cross-origin and foreign-Host requests.
+
+        The server only ever serves its own same-origin UI, so a legitimate
+        request always targets localhost on the bound port. Rejecting anything
+        else blocks both cross-site POSTs (CSRF) and DNS-rebinding attacks that
+        would otherwise reach the command-dispatching endpoints.
+        """
+        bound_port = self.server.server_address[1]
+        allowed_hosts = {
+            f"127.0.0.1:{bound_port}",
+            f"localhost:{bound_port}",
+        }
+        host_header = (self.headers.get("Host") or "").strip().lower()
+        if host_header and host_header not in allowed_hosts:
+            return False
+
+        origin = self.headers.get("Origin")
+        if origin:
+            hostname = urlparse(origin).hostname
+            if hostname not in ("127.0.0.1", "localhost"):
+                return False
+        return True
+
     def _send_json(self, data: dict, status: int = 200) -> None:
         encoded = json.dumps(data).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(encoded)
 
     def do_GET(self) -> None:
+        if not self._is_trusted_request():
+            self.send_error(403, "Forbidden: untrusted origin or host.")
+            return
         path = self.path.split("?")[0]
         if path in ("/", "/index.html", "/ui"):
             html_file = UI_DIR / "index.html"
@@ -507,6 +558,9 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Endpoint não encontrado.")
 
     def do_POST(self) -> None:
+        if not self._is_trusted_request():
+            self.send_error(403, "Forbidden: untrusted origin or host.")
+            return
         path = self.path.split("?")[0]
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length > 0 else b"{}"
@@ -545,7 +599,10 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"status": "error", "message": "Nenhuma plataforma válida encontrada."}, status=400)
                 return
 
-            browser_req = payload.get("browser") or detect_default_browser()
+            browser_req = validate_requested_browser(payload.get("browser"))
+            if browser_req is None:
+                self._send_json({"status": "error", "message": "Navegador não reconhecido."}, status=400)
+                return
             is_private = bool(payload.get("private", False))
             is_human = bool(payload.get("human", False))
             delay = float(payload.get("delay", DEFAULT_TAB_DELAY))
@@ -575,14 +632,22 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
 
 def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
     """Starts the embedded HTTP server for the web interface and opens the default browser."""
-    server_address = ("127.0.0.1", port)
-    try:
-        httpd = HTTPServer(server_address, MultiSearchRequestHandler)
-    except OSError:
-        # Try alternate port
-        port += 1
-        server_address = ("127.0.0.1", port)
-        httpd = HTTPServer(server_address, MultiSearchRequestHandler)
+    httpd = None
+    max_attempts = 10
+    for candidate in range(port, port + max_attempts):
+        try:
+            httpd = HTTPServer(("127.0.0.1", candidate), MultiSearchRequestHandler)
+            port = candidate
+            break
+        except OSError:
+            continue
+
+    if httpd is None:
+        print(
+            f"⚠️ Não foi possível vincular a nenhuma porta entre {port} e {port + max_attempts - 1}.",
+            file=sys.stderr,
+        )
+        return 1
 
     url = f"http://localhost:{port}"
     print("=" * 68)
