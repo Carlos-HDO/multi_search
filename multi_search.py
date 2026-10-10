@@ -66,45 +66,45 @@ DEFAULT_ENGINES: list[dict[str, str]] = [
 
 DEFAULT_CATEGORIES: dict[str, dict] = {
     "osint": {
-        "title": "OSINT & Pessoas",
+        "title": "OSINT & People",
         "icon": "🕵️‍♂️",
-        "description": "Inteligência investigativa, arquivos históricos, dumps de leaks e fóruns públicos",
+        "description": "Investigative intelligence, historical archives, leak dumps and public forums",
         "engines": ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"],
     },
     "infra": {
         "title": "Infra & Threat Intel",
         "icon": "📡",
-        "description": "Infraestrutura de rede, certificados, portas abertas, DNS e reputação de ameaças",
+        "description": "Network infrastructure, certificates, open ports, DNS and threat reputation",
         "engines": ["shodan", "urlscan", "virustotal", "intelx"],
     },
     "pentest": {
         "title": "Pentest & CVEs",
         "icon": "💣",
-        "description": "Bancos de exploits, CVEs, PoCs, advisories de segurança e módulos Metasploit",
+        "description": "Exploit databases, CVEs, PoCs, security advisories and Metasploit modules",
         "engines": ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"],
     },
     "code": {
-        "title": "Código & Secrets",
+        "title": "Code & Secrets",
         "icon": "💻",
-        "description": "Repositórios públicos, busca em código-fonte, API keys e pegadas de desenvolvedor",
+        "description": "Public repositories, source-code search, API keys and developer footprint",
         "engines": ["github", "grepapp", "google"],
     },
     "archive": {
-        "title": "Arquivos & Caches",
+        "title": "Archives & Caches",
         "icon": "🏛️",
-        "description": "Snapshots históricos na Wayback Machine e no Archive.today para páginas deletadas",
+        "description": "Historical snapshots on the Wayback Machine and Archive.today for deleted pages",
         "engines": ["wayback", "archive-today"],
     },
     "web": {
-        "title": "Web Geral",
+        "title": "General Web",
         "icon": "🌐",
-        "description": "Motores de busca convencionais e independentes sem perfilamento cruzado",
+        "description": "Conventional and independent search engines without cross-profiling",
         "engines": ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"],
     },
     "all": {
-        "title": "Todas as Plataformas",
+        "title": "All Platforms",
         "icon": "⚡",
-        "description": "Disparo simultâneo em todas as plataformas cadastradas",
+        "description": "Simultaneous dispatch across every registered platform",
         "engines": [e["key"] for e in DEFAULT_ENGINES],
     },
 }
@@ -161,10 +161,10 @@ def load_config() -> dict:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             cfg = json.load(f)
             if "engines" not in cfg or "categories" not in cfg:
-                raise ValueError("Formato de configuração inválido.")
+                raise ValueError("Invalid configuration format.")
             return cfg
     except Exception as e:
-        print(f"⚠️ Erro ao ler {CONFIG_FILE} ({e}). Carregando catálogo padrão.", file=sys.stderr)
+        print(f"⚠️ Error reading {CONFIG_FILE} ({e}). Loading default catalog.", file=sys.stderr)
         return get_default_config()
 
 
@@ -176,7 +176,7 @@ def save_config(cfg: dict) -> bool:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
-        print(f"⚠️ Erro ao salvar {CONFIG_FILE}: {e}", file=sys.stderr)
+        print(f"⚠️ Error saving {CONFIG_FILE}: {e}", file=sys.stderr)
         return False
 
 
@@ -540,9 +540,17 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html", "/ui"):
             html_file = UI_DIR / "index.html"
             if not html_file.exists():
-                self.send_error(404, "UI index.html não encontrado no pacote.")
+                self.send_error(404, "UI index.html not found in package.")
                 return
-            content = html_file.read_bytes()
+            # Inject the default catalog so Python stays the single source of
+            # truth. The browser-served UI then never relies on a hand-kept JS
+            # copy of the engines/categories (that copy is only an offline
+            # fallback for opening index.html directly from disk).
+            html = html_file.read_text(encoding="utf-8")
+            defaults_json = json.dumps(get_default_config(), ensure_ascii=False).replace("</", "<\\/")
+            injection = f"<script>window.__MSEARCH_DEFAULTS__ = {defaults_json};</script>\n</head>"
+            html = html.replace("</head>", injection, 1)
+            content = html.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
@@ -555,7 +563,7 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
             cfg["installed_browsers"] = [b.to_dict(default_cmd) for b in installed]
             self._send_json(cfg)
         else:
-            self.send_error(404, "Endpoint não encontrado.")
+            self.send_error(404, "Endpoint not found.")
 
     def do_POST(self) -> None:
         if not self._is_trusted_request():
@@ -573,9 +581,9 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/config":
             if "engines" in payload and "categories" in payload:
                 save_config(payload)
-                self._send_json({"status": "ok", "message": "Configuração salva com sucesso!"})
+                self._send_json({"status": "ok", "message": "Configuration saved successfully!"})
             else:
-                self._send_json({"status": "error", "message": "Estrutura de dados inválida."}, status=400)
+                self._send_json({"status": "error", "message": "Invalid data structure."}, status=400)
 
         elif path == "/api/reset":
             cfg = reset_config()
@@ -587,7 +595,7 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
         elif path == "/api/launch":
             term = payload.get("query", "").strip()
             if not term:
-                self._send_json({"status": "error", "message": "Termo de busca vazio."}, status=400)
+                self._send_json({"status": "error", "message": "Empty search query."}, status=400)
                 return
 
             cfg = load_config()
@@ -596,12 +604,12 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
             target_engines = [all_engines[k] for k in selected_keys if k in all_engines]
 
             if not target_engines:
-                self._send_json({"status": "error", "message": "Nenhuma plataforma válida encontrada."}, status=400)
+                self._send_json({"status": "error", "message": "No valid platform found."}, status=400)
                 return
 
             browser_req = validate_requested_browser(payload.get("browser"))
             if browser_req is None:
-                self._send_json({"status": "error", "message": "Navegador não reconhecido."}, status=400)
+                self._send_json({"status": "error", "message": "Unrecognized browser."}, status=400)
                 return
             is_private = bool(payload.get("private", False))
             is_human = bool(payload.get("human", False))
@@ -623,11 +631,11 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
 
             self._send_json({
                 "status": "ok",
-                "message": f"Disparando {len(target_engines)} plataformas no host via {browser_req}!",
+                "message": f"Dispatching {len(target_engines)} platforms on host via {browser_req}!",
                 "engines_count": len(target_engines),
             })
         else:
-            self.send_error(404, "Endpoint não encontrado.")
+            self.send_error(404, "Endpoint not found.")
 
 
 def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
@@ -644,7 +652,7 @@ def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
 
     if httpd is None:
         print(
-            f"⚠️ Não foi possível vincular a nenhuma porta entre {port} e {port + max_attempts - 1}.",
+            f"⚠️ Could not bind to any port between {port} and {port + max_attempts - 1}.",
             file=sys.stderr,
         )
         return 1
@@ -652,9 +660,9 @@ def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
     url = f"http://localhost:{port}"
     print("=" * 68)
     print("  🕵️‍♂️  MULTI-SEARCH — OSINT Recon Hub & Command Center")
-    print(f"  🌐 Servidor local ativo em: {url}")
-    print("  ⚙️  Configuração salva em: ~/.config/multi_search/config.json")
-    print("  ⌨️  Pressione [Ctrl + C] para encerrar.")
+    print(f"  🌐 Local server running at: {url}")
+    print("  ⚙️  Configuration stored at: ~/.config/multi_search/config.json")
+    print("  ⌨️  Press [Ctrl + C] to stop.")
     print("=" * 68)
 
     if open_browser:
@@ -666,7 +674,7 @@ def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n🛑 Servidor Multi-Search encerrado.")
+        print("\n🛑 Multi-Search server stopped.")
     return 0
 
 

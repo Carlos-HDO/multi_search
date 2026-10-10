@@ -1062,72 +1062,38 @@
       }
     };
 
-    const DEFAULT_CATALOG = {
+    /*
+     * The engine/category catalog is owned by multi_search.py. When the UI is
+     * served by msearch, the server injects `window.__MSEARCH_DEFAULTS__` (the
+     * exact default config), and loadConfig() later replaces it with the live
+     * user config from /api/config. The small FALLBACK_CATALOG below is used
+     * ONLY when index.html is opened directly from disk, so there is no second
+     * hand-maintained full copy of the 24 engines to drift out of sync.
+     */
+    const FALLBACK_BROWSERS = [
+      { name: "Firefox", alias: "firefox", btype: "Native", is_default: true },
+      { name: "Chromium", alias: "chromium", btype: "Native", is_default: false }
+    ];
+
+    const FALLBACK_CATALOG = {
       engines: [
         { name: "Google", key: "google", url_template: "https://www.google.com/search?q={q}", category_tag: "web" },
         { name: "Brave", key: "brave", url_template: "https://search.brave.com/search?q={q}", category_tag: "web" },
         { name: "DuckDuckGo", key: "duckduckgo", url_template: "https://duckduckgo.com/?q={q}", category_tag: "web" },
-        { name: "Startpage", key: "startpage", url_template: "https://www.startpage.com/sp/search?query={q}", category_tag: "web" },
-        { name: "Yandex", key: "yandex", url_template: "https://yandex.com/search/?text={q}", category_tag: "web" },
-        { name: "Bing", key: "bing", url_template: "https://www.bing.com/search?q={q}", category_tag: "web" },
-        { name: "Perplexity", key: "perplexity", url_template: "https://www.perplexity.ai/search?q={q}", category_tag: "web" },
-        { name: "Wayback Machine", key: "wayback", url_template: "https://web.archive.org/web/*/{q}", category_tag: "archive" },
-        { name: "Archive.today", key: "archive-today", url_template: "https://archive.ph/{q}", category_tag: "archive" },
-        { name: "Intelligence X", key: "intelx", url_template: "https://intelx.io/?s={q}", category_tag: "osint" },
-        { name: "Reddit", key: "reddit", url_template: "https://www.reddit.com/search/?q={q}", category_tag: "osint" },
         { name: "GitHub Code", key: "github", url_template: "https://github.com/search?q={q}&type=code", category_tag: "code" },
-        { name: "Grep.app", key: "grepapp", url_template: "https://grep.app/search?q={q}", category_tag: "code" },
-        { name: "URLScan", key: "urlscan", url_template: "https://urlscan.io/search/#{q}", category_tag: "infra" },
-        { name: "Shodan", key: "shodan", url_template: "https://www.shodan.io/search?query={q}", category_tag: "infra" },
-        { name: "VirusTotal", key: "virustotal", url_template: "https://www.virustotal.com/gui/search/{q}", category_tag: "infra" },
-        { name: "Exploit-DB", key: "exploitdb", url_template: "https://www.exploit-db.com/search?q={q}", category_tag: "pentest" },
-        { name: "Sploitus", key: "sploitus", url_template: "https://sploitus.com/?query={q}", category_tag: "pentest" },
-        { name: "Packet Storm", key: "packetstorm", url_template: "https://packetstormsecurity.com/search/?q={q}", category_tag: "pentest" },
-        { name: "Rapid7 (MSF)", key: "rapid7", url_template: "https://www.rapid7.com/db/?q={q}", category_tag: "pentest" },
-        { name: "SecLists", key: "seclists", url_template: "https://seclists.org/search/?q={q}", category_tag: "pentest" },
-        { name: "GitHub PoC", key: "githubpoc", url_template: "https://github.com/search?q={q}+poc+OR+exploit&type=repositories", category_tag: "pentest" },
-        { name: "NVD (NIST)", key: "nvd", url_template: "https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query={q}&search_type=all", category_tag: "pentest" },
-        { name: "Vulners", key: "vulners", url_template: "https://vulners.com/search?query={q}", category_tag: "pentest" }
+        { name: "Grep.app", key: "grepapp", url_template: "https://grep.app/search?q={q}", category_tag: "code" }
       ],
       categories: {
-        osint: {
-          icon: "🕵️",
-          engines: ["google", "brave", "yandex", "intelx", "wayback", "archive-today", "urlscan", "reddit"]
-        },
-        infra: {
-          icon: "📡",
-          engines: ["shodan", "urlscan", "virustotal", "intelx"]
-        },
-        pentest: {
-          icon: "💣",
-          engines: ["exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"]
-        },
-        code: {
-          icon: "💻",
-          engines: ["github", "grepapp", "google"]
-        },
-        archive: {
-          icon: "🏛️",
-          engines: ["wayback", "archive-today"]
-        },
-        web: {
-          icon: "🌐",
-          engines: ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity"]
-        },
-        all: {
-          icon: "⚡",
-          engines: ["google", "brave", "duckduckgo", "startpage", "yandex", "bing", "perplexity", "wayback", "archive-today", "intelx", "reddit", "github", "grepapp", "urlscan", "shodan", "virustotal", "exploitdb", "sploitus", "packetstorm", "rapid7", "seclists", "githubpoc", "nvd", "vulners"]
-        }
+        web: { icon: "🌐", engines: ["google", "brave", "duckduckgo"] },
+        code: { icon: "💻", engines: ["github", "grepapp", "google"] },
+        all: { icon: "⚡", engines: ["google", "brave", "duckduckgo", "github", "grepapp"] }
       },
-      installed_browsers: [
-        { name: "LibreWolf", alias: "librewolf", btype: "Flatpak", is_default: true },
-        { name: "Firefox", alias: "firefox", btype: "Native", is_default: false },
-        { name: "Brave", alias: "brave", btype: "Flatpak", is_default: false },
-        { name: "Google Chrome", alias: "chrome", btype: "Flatpak", is_default: false },
-        { name: "Chromium", alias: "chromium", btype: "Snap", is_default: false },
-        { name: "Tor Browser", alias: "tor", btype: "Flatpak", is_default: false }
-      ]
+      installed_browsers: FALLBACK_BROWSERS
     };
+
+    const DEFAULT_CATALOG = (window.__MSEARCH_DEFAULTS__ && Array.isArray(window.__MSEARCH_DEFAULTS__.engines))
+      ? Object.assign({ installed_browsers: FALLBACK_BROWSERS }, window.__MSEARCH_DEFAULTS__)
+      : FALLBACK_CATALOG;
 
     let APP_STATE = {
       lang: localStorage.getItem('msearch_lang') || 'en',
