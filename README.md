@@ -260,8 +260,12 @@ Any changes made via the Web UI are instantly available in both the Web UI and t
 The Web UI Command Center runs a small local server that can launch browsers on your machine, so it is locked to the host that started it:
 
 - Binds to `127.0.0.1` only (never exposed to the network).
-- Rejects (HTTP 403) any request with an external `Origin` (anti-CSRF) or a mismatched `Host` header (anti-DNS-rebinding), so other websites open in your browser cannot drive it.
-- The `/api/launch` endpoint only accepts a **known browser alias or an installed browser command** — arbitrary commands are refused (HTTP 400) and never reach the OS.
+- Rejects (HTTP 403) any request whose `Origin` is not exactly the hub itself (including pages served on *other* localhost ports), a mismatched `Host` header (anti-DNS-rebinding), or a cross-site `Sec-Fetch-Site` on the API, so other websites and local apps open in your browser cannot drive it.
+- `POST` endpoints require `Content-Type: application/json` (HTTP 415 otherwise), which forces a CORS preflight on any cross-origin attempt.
+- Every response sends `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`, so the UI cannot be framed for clickjacking.
+- The `/api/launch` endpoint only accepts a **known browser alias or an installed browser command** — arbitrary commands are refused (HTTP 400) and never reach the OS. Payloads are type-checked, platforms are de-duplicated and the delay is clamped.
+- Platform URL templates must be `http(s)://` URLs containing `{q}`. They are validated both when saved through the API and when the config file is loaded, so a template can never be passed to the browser as a command-line flag (e.g. `--renderer-cmd-prefix=…`) or as a `javascript:`/`file:` URL.
+- `~/.config/multi_search/config.json` is written with owner-only permissions (`0600`).
 
 ---
 

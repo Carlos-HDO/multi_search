@@ -1221,7 +1221,7 @@
       let html = '';
       browsers.forEach(b => {
         const def = b.is_default ? t('defaultSuffix') : '';
-        html += `<option value="${escapeHtml(b.alias)}" ${b.is_default ? 'selected' : ''}>🌐 ${escapeHtml(b.name)} [${b.btype}]${def}</option>`;
+        html += `<option value="${escapeHtml(b.alias)}" ${b.is_default ? 'selected' : ''}>🌐 ${escapeHtml(b.name)} [${escapeHtml(b.btype)}]${def}</option>`;
       });
       select.innerHTML = html;
     }
@@ -1252,7 +1252,7 @@
           <div class="profile-card ${isActive}" onclick="selectCategory('${catKey}')" id="card-cat-${catKey}">
             <div class="profile-header">
               <div class="profile-title">
-                <span>${c.icon}</span> ${escapeHtml(c.title)}
+                <span>${escapeHtml(c.icon)}</span> ${escapeHtml(c.title)}
               </div>
               <span class="profile-badge">${count} ${t('enginesSuffix')}</span>
             </div>
@@ -1272,7 +1272,7 @@
       const catInfo = getCategoryMeta(catKey);
       const activeLabel = document.getElementById('active-profile-label');
       if (activeLabel) {
-        activeLabel.innerHTML = `${t('activeProfilePrefix')}<strong>${catInfo.icon} ${escapeHtml(catInfo.title)}</strong>`;
+        activeLabel.innerHTML = `${t('activeProfilePrefix')}<strong>${escapeHtml(catInfo.icon)} ${escapeHtml(catInfo.title)}</strong>`;
       }
 
       APP_STATE.selectedEngines = new Set(catInfo.engines || []);
@@ -1289,16 +1289,20 @@
       let html = '';
       allEngines.forEach(eng => {
         const isChecked = APP_STATE.selectedEngines.has(eng.key);
+        // Config values only go into escaped attributes; handlers read them
+        // back via dataset instead of having them spliced into inline JS.
+        const key = escapeHtml(eng.key);
+        const tag = escapeHtml(eng.category_tag);
         html += `
-          <div class="engine-chip ${isChecked ? 'checked' : ''}" id="chip-eng-${eng.key}">
-            <input type="checkbox" id="chk-eng-${eng.key}" value="${eng.key}" ${isChecked ? 'checked' : ''} onchange="toggleEngine('${eng.key}', this.checked)">
-            <label for="chk-eng-${eng.key}" class="engine-name" title="${escapeHtml(eng.name)}">
+          <div class="engine-chip ${isChecked ? 'checked' : ''}" id="chip-eng-${key}">
+            <input type="checkbox" id="chk-eng-${key}" value="${key}" data-key="${key}" ${isChecked ? 'checked' : ''} onchange="toggleEngine(this.dataset.key, this.checked)">
+            <label for="chk-eng-${key}" class="engine-name" title="${escapeHtml(eng.name)}">
               ${escapeHtml(eng.name)}
             </label>
-            <span class="engine-tag ${eng.category_tag}">${eng.category_tag}</span>
+            <span class="engine-tag ${tag}">${tag}</span>
             <div class="engine-actions">
-              <button type="button" class="engine-btn" onclick="openEditEngineModal('${eng.key}', event)" title="${APP_STATE.lang === 'pt' ? 'Editar' : 'Edit'}">✏️</button>
-              <button type="button" class="engine-btn delete" onclick="confirmDeleteEngine('${eng.key}', event)" title="${APP_STATE.lang === 'pt' ? 'Remover' : 'Delete'}">✕</button>
+              <button type="button" class="engine-btn" data-key="${key}" onclick="openEditEngineModal(this.dataset.key, event)" title="${APP_STATE.lang === 'pt' ? 'Editar' : 'Edit'}">✏️</button>
+              <button type="button" class="engine-btn delete" data-key="${key}" onclick="confirmDeleteEngine(this.dataset.key, event)" title="${APP_STATE.lang === 'pt' ? 'Remover' : 'Delete'}">✕</button>
             </div>
           </div>
         `;
@@ -1429,12 +1433,12 @@
           <div class="link-card" id="card-link-${idx}">
             <div class="link-header">
               <div class="link-title"><span>🔎</span> ${escapeHtml(item.name)}</div>
-              <span class="engine-tag ${item.tag}">${item.tag}</span>
+              <span class="engine-tag ${escapeHtml(item.tag)}">${escapeHtml(item.tag)}</span>
             </div>
             <div class="link-url" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="copyText('${escapeHtml(item.url)}')">${t('btnCopyLink')}</button>
-              <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">${t('btnOpenTab')}</a>
+              <button type="button" class="btn btn-secondary btn-sm" data-url="${escapeHtml(item.url)}" onclick="copyText(this.dataset.url)">${t('btnCopyLink')}</button>
+              <a href="${isWebUrl(item.url) ? escapeHtml(item.url) : '#'}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">${t('btnOpenTab')}</a>
             </div>
           </div>
         `;
@@ -1585,6 +1589,10 @@
       if (!url.includes('{q}')) {
         url += (url.includes('?') ? '&q={q}' : '?q={q}');
       }
+      if (!isWebUrl(url)) {
+        showToast(APP_STATE.lang === 'pt' ? 'A URL deve começar com http:// ou https:// e não conter espaços.' : 'The URL must start with http:// or https:// and contain no spaces.', 'error');
+        return;
+      }
 
       const cfg = APP_STATE.config;
       if (origKey) {
@@ -1618,7 +1626,7 @@
         cfg.categories.all.engines = cfg.engines.map(e => e.key);
       }
 
-      await saveConfigToServer();
+      if (!(await saveConfigToServer())) return;
       closeEngineModal();
       renderProfiles();
       renderEngines();
@@ -1640,7 +1648,7 @@
       });
       APP_STATE.selectedEngines.delete(key);
 
-      await saveConfigToServer();
+      if (!(await saveConfigToServer())) return;
       renderProfiles();
       renderEngines();
       renderLinks();
@@ -1650,7 +1658,11 @@
     async function confirmResetCatalog() {
       if (!confirm(t('confirmReset'))) return;
       try {
-        const res = await fetch('/api/reset', { method: 'POST' });
+        const res = await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
         if (res.ok) {
           APP_STATE.config = await res.json();
           selectCategory(APP_STATE.activeCategory);
@@ -1665,16 +1677,24 @@
       showToast(t('resetSuccess'), 'success');
     }
 
+    // Returns false only when the server rejected the config; a network
+    // failure (UI opened from disk) keeps the local, in-memory edit.
     async function saveConfigToServer() {
       try {
-        await fetch('/api/config', {
+        const res = await fetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(APP_STATE.config)
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.message || (APP_STATE.lang === 'pt' ? 'Erro ao salvar a configuração.' : 'Error saving configuration.'), 'error');
+          return false;
+        }
       } catch (err) {
         console.error('Error saving config to server:', err);
       }
+      return true;
     }
 
     function openInfoModal(type) {
@@ -1762,7 +1782,11 @@
 
     function escapeHtml(str) {
       if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function isWebUrl(url) {
+      return /^https?:\/\/[^\s]+$/i.test(String(url || ''));
     }
 
     // Initialize immediately
