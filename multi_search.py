@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import random
+import re
 import shlex
 import shutil
 import subprocess
@@ -18,13 +20,21 @@ import sys
 import threading
 import time
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote_plus, urlparse
 
 CONFIG_DIR = Path.home() / ".config" / "multi_search"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 UI_DIR = Path(__file__).resolve().parent / "ui"
+
+# Limits applied to untrusted input (HTTP API payloads and the config file).
+KEY_PATTERN = re.compile(r"[a-z0-9_-]{1,64}")
+MAX_TEXT_LEN = 500
+MAX_URL_LEN = 2048
+MAX_QUERY_LEN = 2048
+MAX_BODY_BYTES = 1_000_000
+MAX_TAB_DELAY = 60.0
 
 DEFAULT_ENGINES: list[dict[str, str]] = [
     # General & Independent Web Indexes
@@ -151,6 +161,81 @@ def get_default_config() -> dict:
     }
 
 
+def is_web_url(url: str) -> bool:
+    """True for an absolute http(s) URL.
+
+    Search URLs are handed to the browser as command-line arguments, so
+    anything else (a leading '-' parsed as a browser flag, or a javascript:/
+    file: scheme) must never get through.
+    """
+    if not isinstance(url, str) or any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in url):
+        return False
+    parsed = urlparse(url)
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
+
+def is_safe_url_template(tpl: str) -> bool:
+    """A platform template must be a web URL containing the {q} placeholder."""
+    return isinstance(tpl, str) and len(tpl) <= MAX_URL_LEN and "{q}" in tpl and is_web_url(tpl)
+
+
+def _is_key(value) -> bool:
+    return isinstance(value, str) and KEY_PATTERN.fullmatch(value) is not None
+
+
+def _is_text(value) -> bool:
+    return isinstance(value, str) and len(value) <= MAX_TEXT_LEN
+
+
+def sanitize_config(cfg) -> tuple[dict, list[str]]:
+    """Validate an UNTRUSTED configuration (HTTP payload or config file).
+
+    Returns (clean_config, errors): invalid engines/categories are dropped and
+    described in `errors`; only known fields are kept. Raises ValueError when
+    the overall structure is unusable.
+    """
+    if not isinstance(cfg, dict) or not isinstance(cfg.get("engines"), list) or not isinstance(cfg.get("categories"), dict):
+        raise ValueError("configuration must have an 'engines' list and a 'categories' object")
+
+    errors: list[str] = []
+    engines: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for idx, eng in enumerate(cfg["engines"]):
+        if not isinstance(eng, dict):
+            errors.append(f"engines[{idx}]: not an object")
+            continue
+        key = eng.get("key")
+        label = f"engine {key!r}" if isinstance(key, str) else f"engines[{idx}]"
+        tag = eng.get("category_tag", "web")
+        if not _is_key(key):
+            errors.append(f"{label}: key must match [a-z0-9_-]{{1,64}}")
+        elif key in seen:
+            errors.append(f"{label}: duplicate key")
+        elif not _is_text(eng.get("name")) or not eng["name"].strip():
+            errors.append(f"{label}: invalid name")
+        elif not is_safe_url_template(eng.get("url_template")):
+            errors.append(f"{label}: url_template must be an http(s) URL containing {{q}}")
+        elif not _is_key(tag):
+            errors.append(f"{label}: invalid category_tag")
+        else:
+            seen.add(key)
+            engines.append({"name": eng["name"].strip(), "key": key, "url_template": eng["url_template"], "category_tag": tag})
+
+    categories: dict[str, dict] = {}
+    for cat_key, cat in cfg["categories"].items():
+        if not _is_key(cat_key) or not isinstance(cat, dict):
+            errors.append(f"category {cat_key!r}: invalid")
+            continue
+        fields = {f: cat.get(f, "") for f in ("title", "icon", "description")}
+        cat_engines = cat.get("engines", [])
+        if not all(_is_text(v) for v in fields.values()) or not isinstance(cat_engines, list):
+            errors.append(f"category {cat_key!r}: invalid fields")
+            continue
+        categories[cat_key] = {**fields, "engines": [k for k in cat_engines if isinstance(k, str) and k in seen]}
+
+    return {"engines": engines, "categories": categories}, errors
+
+
 def load_config() -> dict:
     """Loads configuration from ~/.config/multi_search/config.json or initializes default."""
     if not CONFIG_FILE.exists():
@@ -159,21 +244,23 @@ def load_config() -> dict:
         return cfg
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-            if "engines" not in cfg or "categories" not in cfg:
-                raise ValueError("Invalid configuration format.")
-            return cfg
+            cfg, errors = sanitize_config(json.load(f))
+        for err in errors:
+            print(f"⚠️ Ignoring invalid entry in {CONFIG_FILE}: {err}", file=sys.stderr)
+        return cfg
     except Exception as e:
         print(f"⚠️ Error reading {CONFIG_FILE} ({e}). Loading default catalog.", file=sys.stderr)
         return get_default_config()
 
 
 def save_config(cfg: dict) -> bool:
-    """Saves configuration to ~/.config/multi_search/config.json."""
+    """Saves configuration to ~/.config/multi_search/config.json (owner-only permissions)."""
     try:
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(CONFIG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
+        os.chmod(CONFIG_FILE, 0o600)  # also tighten files created by older versions
         return True
     except Exception as e:
         print(f"⚠️ Error saving {CONFIG_FILE}: {e}", file=sys.stderr)
@@ -401,9 +488,21 @@ def calculate_delay(base: float, jitter: float) -> float:
 
 
 def build_searches(term: str, engines: list[tuple[str, str, str]]) -> list[tuple[str, str]]:
-    """Generates (Name, formatted URL) pairs for the given search term."""
+    """Generates (Name, formatted URL) pairs for the given search term.
+
+    Templates are filled with a plain replace (never str.format, which would
+    evaluate attribute lookups embedded in a template), and any result that is
+    not an http(s) URL is dropped so it can never reach the browser as a flag.
+    """
     q = quote_plus(term)
-    return [(name, tpl.format(q=q)) for name, _, tpl in engines]
+    searches = []
+    for name, _, tpl in engines:
+        url = tpl.replace("{q}", q)
+        if is_web_url(url):
+            searches.append((name, url))
+        else:
+            print(f"⚠️ Skipping {name}: template is not an http(s) URL.", file=sys.stderr)
+    return searches
 
 
 def dispatch_searches(
@@ -438,6 +537,9 @@ def dispatch_searches(
             initial_delay = 2.2
 
     searches = build_searches(term, engines)
+    if not searches:
+        print("Error: No valid search URL to open.", file=sys.stderr)
+        return 2
     if shuffle:
         random.shuffle(searches)
 
@@ -497,16 +599,30 @@ def dispatch_searches(
 # ============================================================================
 
 class MultiSearchRequestHandler(BaseHTTPRequestHandler):
+    # Drop idle/slow connections instead of holding a worker forever.
+    timeout = 10
+
     def log_message(self, format: str, *args) -> None:
         pass  # Suppress default noisy console logs
 
-    def _is_trusted_request(self) -> bool:
+    def end_headers(self) -> None:
+        # Sent on every response, including errors: forbid framing the UI
+        # (clickjacking) and MIME sniffing, and keep the local URL private.
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+    def _is_trusted_request(self, path: str) -> bool:
         """Reject cross-origin and foreign-Host requests.
 
         The server only ever serves its own same-origin UI, so a legitimate
         request always targets localhost on the bound port. Rejecting anything
-        else blocks both cross-site POSTs (CSRF) and DNS-rebinding attacks that
-        would otherwise reach the command-dispatching endpoints.
+        else blocks cross-site POSTs (CSRF), requests from pages served on
+        other local ports, and DNS-rebinding attacks that would otherwise reach
+        the command-dispatching endpoints.
         """
         bound_port = self.server.server_address[1]
         allowed_hosts = {
@@ -517,11 +633,16 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
         if host_header and host_header not in allowed_hosts:
             return False
 
+        # Exact origin match: the port matters, other localhost apps are foreign.
         origin = self.headers.get("Origin")
-        if origin:
-            hostname = urlparse(origin).hostname
-            if hostname not in ("127.0.0.1", "localhost"):
-                return False
+        if origin is not None and origin.strip().lower() not in {f"http://{h}" for h in allowed_hosts}:
+            return False
+
+        # Defense in depth for browsers that send Fetch Metadata: the API is
+        # only for the UI itself (or a URL typed by the user).
+        fetch_site = self.headers.get("Sec-Fetch-Site")
+        if path.startswith("/api/") and fetch_site not in (None, "same-origin", "none"):
+            return False
         return True
 
     def _send_json(self, data: dict, status: int = 200) -> None:
@@ -532,11 +653,42 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def _send_error_json(self, message: str, status: int = 400) -> None:
+        self._send_json({"status": "error", "message": message}, status=status)
+
+    def _read_json_body(self):
+        """Read and parse the request body, or send an error and return None."""
+        if self.headers.get_content_type() != "application/json":
+            # Also forces a CORS preflight for any cross-origin fetch.
+            self._send_error_json("Content-Type must be application/json.", 415)
+            return None
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self._send_error_json("Invalid Content-Length.")
+            return None
+        if length < 0:
+            self._send_error_json("Invalid Content-Length.")
+            return None
+        if length > MAX_BODY_BYTES:
+            self._send_error_json("Request body too large.", 413)
+            return None
+        body = self.rfile.read(length) if length else b""
+        try:
+            payload = json.loads(body.decode("utf-8")) if body else {}
+        except (UnicodeDecodeError, ValueError):
+            self._send_error_json("Invalid JSON body.")
+            return None
+        if not isinstance(payload, dict):
+            self._send_error_json("JSON body must be an object.")
+            return None
+        return payload
+
     def do_GET(self) -> None:
-        if not self._is_trusted_request():
+        path = self.path.split("?")[0]
+        if not self._is_trusted_request(path):
             self.send_error(403, "Forbidden: untrusted origin or host.")
             return
-        path = self.path.split("?")[0]
         if path in ("/", "/index.html", "/ui"):
             html_file = UI_DIR / "index.html"
             if not html_file.exists():
@@ -566,24 +718,30 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Endpoint not found.")
 
     def do_POST(self) -> None:
-        if not self._is_trusted_request():
+        path = self.path.split("?")[0]
+        if not self._is_trusted_request(path):
             self.send_error(403, "Forbidden: untrusted origin or host.")
             return
-        path = self.path.split("?")[0]
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length) if length > 0 else b"{}"
-
-        try:
-            payload = json.loads(body.decode("utf-8"))
-        except Exception:
-            payload = {}
+        if path not in ("/api/config", "/api/reset", "/api/launch"):
+            self.send_error(404, "Endpoint not found.")
+            return
+        payload = self._read_json_body()
+        if payload is None:
+            return
 
         if path == "/api/config":
-            if "engines" in payload and "categories" in payload:
-                save_config(payload)
-                self._send_json({"status": "ok", "message": "Configuration saved successfully!"})
-            else:
-                self._send_json({"status": "error", "message": "Invalid data structure."}, status=400)
+            try:
+                cfg, errors = sanitize_config(payload)
+            except ValueError as e:
+                self._send_error_json(f"Invalid configuration: {e}.")
+                return
+            if errors:
+                self._send_json({"status": "error", "message": f"Invalid configuration: {errors[0]}.", "errors": errors}, status=400)
+                return
+            if not save_config(cfg):
+                self._send_error_json("Could not write the configuration file.", 500)
+                return
+            self._send_json({"status": "ok", "message": "Configuration saved successfully!"})
 
         elif path == "/api/reset":
             cfg = reset_config()
@@ -593,27 +751,44 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
             self._send_json(cfg)
 
         elif path == "/api/launch":
-            term = payload.get("query", "").strip()
-            if not term:
-                self._send_json({"status": "error", "message": "Empty search query."}, status=400)
+            term = payload.get("query", "")
+            if not isinstance(term, str) or not term.strip():
+                self._send_error_json("Empty search query.")
+                return
+            term = term.strip()
+            if len(term) > MAX_QUERY_LEN:
+                self._send_error_json("Search query too long.")
                 return
 
+            selected_keys = payload.get("engines", [])
+            if not isinstance(selected_keys, list):
+                self._send_error_json("'engines' must be a list.")
+                return
             cfg = load_config()
             all_engines = {e["key"]: (e["name"], e["key"], e["url_template"]) for e in cfg.get("engines", [])}
-            selected_keys = payload.get("engines", [])
-            target_engines = [all_engines[k] for k in selected_keys if k in all_engines]
+            # Deduplicate so one request can open each platform at most once.
+            unique_keys = dict.fromkeys(k for k in selected_keys if isinstance(k, str) and k in all_engines)
+            target_engines = [all_engines[k] for k in unique_keys]
 
             if not target_engines:
-                self._send_json({"status": "error", "message": "No valid platform found."}, status=400)
+                self._send_error_json("No valid platform found.")
                 return
 
-            browser_req = validate_requested_browser(payload.get("browser"))
+            browser = payload.get("browser")
+            if browser is not None and not isinstance(browser, str):
+                self._send_error_json("'browser' must be a string.")
+                return
+            browser_req = validate_requested_browser(browser)
             if browser_req is None:
-                self._send_json({"status": "error", "message": "Unrecognized browser."}, status=400)
+                self._send_error_json("Unrecognized browser.")
                 return
             is_private = bool(payload.get("private", False))
             is_human = bool(payload.get("human", False))
-            delay = float(payload.get("delay", DEFAULT_TAB_DELAY))
+            delay = payload.get("delay", DEFAULT_TAB_DELAY)
+            if isinstance(delay, bool) or not isinstance(delay, (int, float)) or not math.isfinite(delay):
+                self._send_error_json("'delay' must be a number of seconds.")
+                return
+            delay = min(max(float(delay), 0.0), MAX_TAB_DELAY)
 
             # Dispatch asynchronously in host so HTTP endpoint returns immediately
             def run_dispatch():
@@ -634,8 +809,6 @@ class MultiSearchRequestHandler(BaseHTTPRequestHandler):
                 "message": f"Dispatching {len(target_engines)} platforms on host via {browser_req}!",
                 "engines_count": len(target_engines),
             })
-        else:
-            self.send_error(404, "Endpoint not found.")
 
 
 def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
@@ -644,7 +817,8 @@ def start_ui_server(port: int = 7890, open_browser: bool = True) -> int:
     max_attempts = 10
     for candidate in range(port, port + max_attempts):
         try:
-            httpd = HTTPServer(("127.0.0.1", candidate), MultiSearchRequestHandler)
+            # Threaded so one slow client cannot block the UI.
+            httpd = ThreadingHTTPServer(("127.0.0.1", candidate), MultiSearchRequestHandler)
             port = candidate
             break
         except OSError:
